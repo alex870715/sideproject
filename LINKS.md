@@ -2,6 +2,18 @@
 
 GitHub Pages **只能放 Portfolio 首頁**。各 app 要各自部署，再在 `portfolio/config.js` 填網址。
 
+## 各專案 GitHub repo（獨立推送，方便 Vercel / Streamlit 連接）
+
+| 專案 | Repo |
+|------|------|
+| Portfolio（整包 monorepo） | https://github.com/alex870715/sideproject |
+| Chow-It | https://github.com/alex870715/Chow-it |
+| Earth Online | https://github.com/alex870715/EarthOnline |
+| PlanT | https://github.com/alex870715/PlanT |
+| StockOracle | https://github.com/alex870715/StockOracle |
+
+Vercel / Streamlit Cloud 連上述 repo 即可；Portfolio 首頁填各 app 的 **部署網址**（不是 repo 網址）。
+
 ---
 
 ## 能不能四個都用 Streamlit？

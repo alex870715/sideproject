@@ -12,9 +12,9 @@
 
   var PROJECT_URLS = {
     "chow-it": "__URL_CHOWIT__",
-    "earth-online": "__URL_EARTHONLINE__",
-    "plant": "__URL_PLANT__",
-    "stock-oracle": "__URL_STOCKORACLE__",
+    "earth-online": "https://earth-online-three.vercel.app/",
+    "plant": "https://vercel.com/alex870715s-projects/plan-t/3LDTWGzyS4EJcSftyfueXb4vH6og",
+    "stock-oracle": "https://stockoracle-mwhiheuk22sp8vy2yufgy9.streamlit.app/",
   };
 
   function isPlaceholder(v) {
