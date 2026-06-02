@@ -36,7 +36,7 @@
           var banner = document.createElement("div");
           banner.className = "setup-banner";
           banner.innerHTML =
-            "<strong>App 連結尚未設定。</strong> 請先在 Render 佈署全站，再於 GitHub repo 設定 Secret <code>APPS_ORIGIN</code>（你的 gateway 網址），或編輯 <code>portfolio/config.js</code>。詳見 repo 的 <code>LINKS.md</code>。";
+            "<strong>部分連結尚未設定。</strong> 在 <code>portfolio/config.js</code> 的 <code>PROJECT_URLS</code> 填入各 app 網址（StockOracle 用 streamlit.app，其餘用 Vercel 等）。詳見 <code>LINKS.md</code>。";
           document.querySelector(".wrap").insertBefore(banner, document.getElementById("projects"));
         }
 

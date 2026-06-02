@@ -26,16 +26,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject Render gateway URL for GitHub Pages links
+      - name: Inject app URLs for GitHub Pages links
         env:
           APPS_ORIGIN: ${{ secrets.APPS_ORIGIN }}
+          URL_STOCKORACLE: ${{ secrets.URL_STOCKORACLE }}
+          URL_CHOWIT: ${{ secrets.URL_CHOWIT }}
+          URL_PLANT: ${{ secrets.URL_PLANT }}
+          URL_EARTHONLINE: ${{ secrets.URL_EARTHONLINE }}
         run: |
-          if [ -n "$APPS_ORIGIN" ]; then
-            sed -i "s|__APPS_ORIGIN__|${APPS_ORIGIN}|g" portfolio/config.js
-            echo "APPS_ORIGIN injected."
-          else
-            echo "APPS_ORIGIN secret not set — app links disabled on GitHub Pages. See LINKS.md"
-          fi
+          inject() { var="$1"; val="$2"; [ -n "$val" ] && sed -i "s|$var|$val|g" portfolio/config.js; }
+          inject "__APPS_ORIGIN__" "$APPS_ORIGIN"
+          inject "__URL_STOCKORACLE__" "$URL_STOCKORACLE"
+          inject "__URL_CHOWIT__" "$URL_CHOWIT"
+          inject "__URL_PLANT__" "$URL_PLANT"
+          inject "__URL_EARTHONLINE__" "$URL_EARTHONLINE"
+          echo "URL injection done (unset secrets keep placeholders)."
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -1,17 +1,28 @@
 /**
- * Portfolio 設定
+ * Portfolio 設定 — GitHub Pages 首頁 + 各 app 獨立網址
  *
- * GitHub Pages 只放首頁；四個 app 跑在 Render（同一個 gateway 網址底下）。
- * 佈署 Render 後，把 APPS_ORIGIN 改成你的 gateway 網址，或在 GitHub repo
- * Settings → Secrets → APPS_ORIGIN 設定（Actions 會自動替換 __APPS_ORIGIN__）。
+ * 每個專案填 url（完整 https://…）即可；留 __URL_xxx__ 表示尚未設定。
+ * 也可用 GitHub Actions Secrets 自動替換（見 LINKS.md）。
+ *
+ * 注意：只有 StockOracle 能放 Streamlit Cloud；其餘三個需 Vercel 等平台。
  */
 (function () {
-  /** @type {string} Render gateway 網址，不要結尾斜線。未佈署前保持 __APPS_ORIGIN__ */
+  /** 可選：若四個 app 都佈在同一個 Render gateway，填一個網址即可當 fallback */
   var APPS_ORIGIN = "__APPS_ORIGIN__";
+
+  var PROJECT_URLS = {
+    "chow-it": "__URL_CHOWIT__",
+    "earth-online": "__URL_EARTHONLINE__",
+    "plant": "__URL_PLANT__",
+    "stock-oracle": "__URL_STOCKORACLE__",
+  };
+
+  function isPlaceholder(v) {
+    return !v || v.indexOf("__URL_") === 0 || v === "__APPS_ORIGIN__";
+  }
 
   function resolveAppsBase() {
     var host = location.hostname;
-    // 在 Render / 本機 Docker 上，首頁與 app 同域 → 用相對路徑
     if (
       /\.onrender\.com$/i.test(host) ||
       host === "localhost" ||
@@ -19,21 +30,23 @@
     ) {
       return "";
     }
-    // GitHub Pages 等外部入口 → 連到 Render
-    if (APPS_ORIGIN && APPS_ORIGIN !== "__APPS_ORIGIN__") {
+    if (!isPlaceholder(APPS_ORIGIN)) {
       return APPS_ORIGIN.replace(/\/$/, "");
     }
     return null;
   }
 
-  function appHref(path) {
+  function resolveHref(id, path) {
+    var direct = PROJECT_URLS[id];
+    if (!isPlaceholder(direct)) return direct;
+
     var base = resolveAppsBase();
-    if (base === null) return null;
-    return base + path;
+    if (base !== null) return base + path;
+
+    return null;
   }
 
   window.PORTFOLIO = {
-    appsBase: resolveAppsBase(),
     owner: {
       name: "Alex Chen",
       tagline: "Side projects · 工具、遊戲與實驗",
@@ -52,7 +65,7 @@
           "好友聚餐時的決策助手：30 秒口味測驗建立 Taste Profile、用餐日記月曆、轉盤／抽抽樂／跳跳樂幫你決定吃什麼，還有「談判室」讓代理人代大家協調點餐。",
         stack: ["Expo", "React Native", "Tamagui"],
         hrefLabel: "進入 Chow-It",
-        note: "Web 版；相機／相片功能依瀏覽器權限",
+        note: "Web 版 · 建議 Vercel 部署 Expo export",
       },
       {
         id: "earth-online",
@@ -65,7 +78,7 @@
           "把現實世界走過的路變成地圖上的探索：迷霧解鎖、區域活動、成就與等級，支援匯入 Google 定位紀錄，在地球儀上慢慢「開圖」。",
         stack: ["Expo", "React Native", "Mapbox"],
         hrefLabel: "進入 Earth Online",
-        note: "地圖需 Mapbox token（Render gateway 環境變數）",
+        note: "Web demo · Vercel；完整版可連 App Store",
       },
       {
         id: "plant",
@@ -78,7 +91,7 @@
           "智慧團體旅行規劃：主幹與分支路線（Trunk & Sprouts）、6 碼 seed 分享行程、地圖協作，還能用 AI 生成童話風格旅行小冊。",
         stack: ["Next.js 15", "Prisma", "PostgreSQL", "OpenAI"],
         hrefLabel: "進入 PlanT",
-        note: "含 PostgreSQL；首次建立行程需數秒",
+        note: "Next.js · 建議 Vercel + Neon Postgres",
       },
       {
         id: "stock-oracle",
@@ -91,15 +104,17 @@
           "多策略選股、walk-forward 回測、資產配置與持股健檢（含融資口徑淨資產／成本）。支援台股／美股、繁中／英文，研究示範用途。",
         stack: ["Python", "Streamlit", "yfinance"],
         hrefLabel: "進入 StockOracle",
-        note: "研究示範；全市場掃描首次較慢",
+        note: "Streamlit Cloud · *.streamlit.app",
       },
     ],
   };
 
+  var anyEnabled = false;
   window.PORTFOLIO.projects.forEach(function (p) {
-    p.href = appHref(p.path);
+    p.href = resolveHref(p.id, p.path);
     p.enabled = !!p.href;
+    if (p.enabled) anyEnabled = true;
   });
 
-  window.PORTFOLIO.setupRequired = window.PORTFOLIO.appsBase === null;
+  window.PORTFOLIO.setupRequired = !anyEnabled;
 })();

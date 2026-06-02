@@ -1,103 +1,111 @@
-# 讓 Portfolio 連結不要 404
+# 讓 GitHub Pages 連結不要 404（混合部署）
 
-GitHub Pages **只能放靜態首頁**，跑不了 PlanT / Streamlit / Expo 後端。  
-要讓四個 app **真的能點進去操作**，需要再佈署 **Render 全站**，並把網址填回設定。
-
----
-
-## 你要做的事（約 10 分鐘 + 等建置）
-
-### 步驟 1：在 Render 佈署四個 app
-
-1. 打開 **[render.com](https://render.com)**，用 GitHub 登入  
-2. 點 **New → Blueprint**  
-3. 選 repo：**`alex870715/sideproject`**  
-4. Render 會讀取根目錄的 `render.yaml`，建立：
-   - `plant-db`（PostgreSQL）
-   - `plant`、`stockoracle`（內網）
-   - **`gateway`**（對外網址，含 Portfolio + 四個 app）
-5. 按 **Apply**，等建置完成（**首次約 15–30 分鐘**）
-
-建置成功後，在 Render Dashboard 點 **`gateway`** 服務，複製 **URL**，例如：
-
-```text
-https://gateway-xxxx.onrender.com
-```
-
-（實際網址以 Render 顯示為準，不要自己猜。）
-
-在瀏覽器直接打開這個網址，應該能看到 Portfolio，且：
-
-- `https://你的網址/chow-it/`
-- `https://你的網址/plant/`
-- `https://你的網址/stockoracle/`
-
-都能進去（Earth Online 地圖需 Mapbox token，見下方）。
-
-> **建議：** 之後書籤用 **Render 的 gateway 網址** 當主入口，比 GitHub Pages 少一層跳轉。
+GitHub Pages **只能放 Portfolio 首頁**。各 app 要各自部署，再在 `portfolio/config.js` 填網址。
 
 ---
 
-### 步驟 2：讓 GitHub Pages 上的連結也指向 Render
+## 能不能四個都用 Streamlit？
 
-GitHub Pages（`alex870715.github.io/sideproject/`）上的卡片，需要知道 Render 網址才不會 404。
+| 專案 | 能用 Streamlit Cloud？ | 原因 |
+|------|------------------------|------|
+| **StockOracle** | ✅ 可以 | Python + Streamlit |
+| **Chow-It** | ❌ 不行 | Expo / React Native Web |
+| **Earth Online** | ❌ 不行 | Expo / React Native |
+| **PlanT** | ❌ 不行 | Next.js + PostgreSQL API |
 
-**做法 A — GitHub Secret（推薦）**
+Streamlit Cloud **只跑** `streamlit run xxx.py`，不能 host Next.js 或 Expo app。
 
-1. 打開 https://github.com/alex870715/sideproject/settings/secrets/actions  
-2. **New repository secret**  
-   - Name：`APPS_ORIGIN`  
-   - Value：你的 gateway 網址，例如 `https://gateway-xxxx.onrender.com`（**不要**結尾 `/`）  
-3. 到 **Actions** → **Deploy portfolio to GitHub Pages** → **Run workflow** 重新部署
+---
 
-**做法 B — 直接改檔案**
+## 推薦做法（你現在的情境）
 
-編輯 `portfolio/config.js`，把：
+| 專案 | 部署平台 | 你會得到 |
+|------|----------|----------|
+| **Portfolio 首頁** | GitHub Pages | `https://alex870715.github.io/sideproject/` |
+| **StockOracle** | [Streamlit Cloud](https://share.streamlit.io)（你已在用） | `https://xxx.streamlit.app` |
+| **PlanT** | [Vercel](https://vercel.com) + [Neon](https://neon.tech) Postgres | `https://plant-xxx.vercel.app` |
+| **Chow-It** | Vercel（Expo Web export） | `https://chow-it-xxx.vercel.app` |
+| **Earth Online** | Vercel Web demo，或 App Store 連結 | 擇一 |
+
+首頁在 **github.io**，卡片連到各平台 **完整 URL** — 完全可行，也是很多人 portfolio 的做法。
+
+---
+
+## 設定連結（編輯 config.js）
+
+打開 `portfolio/config.js`，在 `PROJECT_URLS` 填入你的網址：
 
 ```javascript
-var APPS_ORIGIN = "__APPS_ORIGIN__";
+var PROJECT_URLS = {
+  "chow-it": "https://你的-chow-it.vercel.app",
+  "earth-online": "https://你的-earth.vercel.app",
+  "plant": "https://你的-plant.vercel.app",
+  "stock-oracle": "https://你的-stockoracle.streamlit.app",
+};
 ```
 
-改成：
+commit + push 到 `main`，GitHub Pages 會自動更新。
 
-```javascript
-var APPS_ORIGIN = "https://gateway-xxxx.onrender.com";
+### 或用 GitHub Secrets（CI 自動替換）
+
+Repo → Settings → Secrets → Actions，新增：
+
+| Secret | 範例 |
+|--------|------|
+| `URL_STOCKORACLE` | `https://stockoracle-xxx.streamlit.app` |
+| `URL_CHOWIT` | `https://…` |
+| `URL_PLANT` | `https://…` |
+| `URL_EARTHONLINE` | `https://…` |
+
+push 後 workflow 會替換 `__URL_xxx__`  placeholder。
+
+---
+
+## StockOracle（Streamlit Cloud）
+
+你原本獨立 repo `alex870715/StockOracle` 可以**繼續用**：
+
+1. [share.streamlit.io](https://share.streamlit.io) → 連該 repo  
+2. Main file：`app.py`  
+3. 複製 `.streamlit.app` 網址 → 填進 `URL_STOCKORACLE`
+
+monorepo 裡的 `StockOracle/` 是同一套程式；若要改 deploy Streamlit 指到 monorepo 子目錄，需在 Streamlit Cloud 設 **Root directory** 為 `StockOracle`（若平台支援）。
+
+---
+
+## PlanT（Vercel 簡述）
+
+1. [vercel.com](https://vercel.com) → Import `sideproject` repo  
+2. **Root Directory** 設 `PlanT`  
+3. 環境變數 `DATABASE_URL` → Neon 免費 Postgres 連線字串  
+4. Deploy 後把 Vercel 網址填進 `URL_PLANT`
+
+---
+
+## Chow-It / Earth Online（Vercel 簡述）
+
+Expo Web 需先 static export（本地或 CI）：
+
+```bash
+cd Chow-it && npx expo export -p web
+# 輸出在 dist/
 ```
 
-commit + push 到 `main`。
+Vercel：Root 指到 `Chow-it`，Output 目錄 `dist`（或加 build command `npx expo export -p web`）。
+
+Earth Online 同理，Root 指 `EarthOnline/mobile`，並在 Vercel 設 `EXPO_PUBLIC_MAPBOX_TOKEN` 等 env。
 
 ---
 
-### 步驟 3（可選）：Earth Online 地圖
+## 還想用「一個網址包全部」？
 
-Render → **gateway** 服務 → **Environment**：
-
-| 變數 | 說明 |
-|------|------|
-| `EXPO_PUBLIC_MAPBOX_TOKEN` | [Mapbox](https://account.mapbox.com/access-tokens/) token |
-| `EXPO_PUBLIC_SUPABASE_URL` | Supabase 專案 URL（雲端同步） |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-
-改完後對 **gateway** 按 **Manual Deploy → Clear build cache & deploy**（Earth Online 是建置時打包進靜態檔）。
+那就是 **Render Blueprint**（`render.yaml`），不是 Streamlit。見 `DEPLOY.md` 方案 A。
 
 ---
 
-## 兩個網址怎麼用？
+## 檢查清單
 
-| 入口 | 網址 | 連結行為 |
-|------|------|----------|
-| **Render（推薦）** | `https://gateway-xxxx.onrender.com/` | 同域，全部相對路徑，一定不 404 |
-| **GitHub Pages** | `https://alex870715.github.io/sideproject/` | 需設定 `APPS_ORIGIN` 才會連到 Render |
-
----
-
-## 常見問題
-
-**Render 建置失敗？**  
-到 Render → 該服務 → **Logs**。Expo 建置較久，可先看 `gateway` 的 log。
-
-**點連結很慢？**  
-Render 免費版閒置會休眠，第一次開要等 ~1 分鐘喚醒。
-
-**還是 404？**  
-確認 `APPS_ORIGIN` 與 Render Dashboard 上的 gateway URL **完全一致**（含 `https://`、不要多斜線）。
+- [ ] StockOracle 已在 streamlit.app 可開  
+- [ ] 其餘三個已部署到 Vercel（或其他）  
+- [ ] `portfolio/config.js` 四個 URL 都填好  
+- [ ] push → 開 github.io 點卡片確認不 404  
