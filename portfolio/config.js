@@ -11,7 +11,7 @@
   var APPS_ORIGIN = "__APPS_ORIGIN__";
 
   var PROJECT_URLS = {
-    "chow-it": "__URL_CHOWIT__",
+    "chow-it": "https://chow-it.vercel.app/",
     "earth-online": "https://earth-online-three.vercel.app/",
     "plant": "https://plan-t-pied.vercel.app/",
     "stock-oracle": "https://stockoracle-mwhiheuk22sp8vy2yufgy9.streamlit.app/",
