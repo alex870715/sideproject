@@ -32,6 +32,14 @@
         var cfg = window.PORTFOLIO;
         if (!cfg) return;
 
+        if (cfg.setupRequired) {
+          var banner = document.createElement("div");
+          banner.className = "setup-banner";
+          banner.innerHTML =
+            "<strong>App 連結尚未設定。</strong> 請先在 Render 佈署全站，再於 GitHub repo 設定 Secret <code>APPS_ORIGIN</code>（你的 gateway 網址），或編輯 <code>portfolio/config.js</code>。詳見 repo 的 <code>LINKS.md</code>。";
+          document.querySelector(".wrap").insertBefore(banner, document.getElementById("projects"));
+        }
+
         var hero = document.getElementById("hero");
         hero.innerHTML =
           '<p class="hero-kicker">Portfolio</p>' +
@@ -59,7 +67,10 @@
           el.className = "card" + (enabled ? "" : " card--disabled");
           if (enabled) {
             el.href = p.href;
-            el.target = p.href.startsWith("http") ? "_blank" : "_self";
+            var sameOrigin =
+              !p.href.startsWith("http") ||
+              p.href.indexOf(location.origin) === 0;
+            el.target = sameOrigin ? "_self" : "_blank";
             el.rel = "noopener noreferrer";
           }
 

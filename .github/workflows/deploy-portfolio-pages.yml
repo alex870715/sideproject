@@ -26,6 +26,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Inject Render gateway URL for GitHub Pages links
+        env:
+          APPS_ORIGIN: ${{ secrets.APPS_ORIGIN }}
+        run: |
+          if [ -n "$APPS_ORIGIN" ]; then
+            sed -i "s|__APPS_ORIGIN__|${APPS_ORIGIN}|g" portfolio/config.js
+            echo "APPS_ORIGIN injected."
+          else
+            echo "APPS_ORIGIN secret not set — app links disabled on GitHub Pages. See LINKS.md"
+          fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
