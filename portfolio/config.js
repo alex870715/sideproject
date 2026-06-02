@@ -18,7 +18,12 @@
   };
 
   function isPlaceholder(v) {
-    return !v || v.indexOf("__URL_") === 0 || v === "__APPS_ORIGIN__";
+    if (!v || typeof v !== "string") return true;
+    var t = v.trim();
+    if (!t || t === "__APPS_ORIGIN__") return true;
+    if (t.indexOf("__URL_") !== -1) return true;
+    if (!/^https?:\/\//i.test(t)) return true;
+    return false;
   }
 
   function resolveAppsBase() {

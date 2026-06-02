@@ -34,10 +34,10 @@ jobs:
           URL_PLANT: ${{ secrets.URL_PLANT }}
           URL_EARTHONLINE: ${{ secrets.URL_EARTHONLINE }}
         run: |
-          # bash -e: empty secret must not make [ -n "$val" ] fail the job
+          # 僅替換仍為 placeholder 的字串；config.js 已填完整 URL 時不受 Secrets 影響
           inject() {
             local var="$1" val="$2"
-            if [ -n "$val" ]; then
+            if [ -n "$val" ] && grep -q "$var" portfolio/config.js; then
               sed -i "s|${var}|${val}|g" portfolio/config.js
             fi
           }
@@ -46,7 +46,12 @@ jobs:
           inject "__URL_CHOWIT__" "$URL_CHOWIT"
           inject "__URL_PLANT__" "$URL_PLANT"
           inject "__URL_EARTHONLINE__" "$URL_EARTHONLINE"
-          echo "URL injection done (unset secrets keep placeholders)."
+          echo "URL injection done."
+
+      - name: Cache-bust config.js reference
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          sed -i "s|config.js?v=[^\"]*|config.js?v=${SHA}|g; s|config.js\"|config.js?v=${SHA}\"|g" portfolio/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
