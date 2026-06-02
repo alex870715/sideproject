@@ -5,12 +5,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Leaf, Sprout } from "lucide-react";
 import { AiSettingsDialog } from "@/components/settings/ai-settings-dialog";
+import { TripDateFields } from "@/components/trip-date-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  getDefaultTripDateRange,
+  tripRangeToIso,
+  validateTripDateRange,
+} from "@/lib/trip-dates";
 
 export function WelcomePage() {
   const router = useRouter();
   const [seedCode, setSeedCode] = useState("");
+  const defaultRange = getDefaultTripDateRange();
+  const [tripStart, setTripStart] = useState(defaultRange.start);
+  const [tripEnd, setTripEnd] = useState(defaultRange.end);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,20 +46,24 @@ export function WelcomePage() {
   }
 
   async function handlePlantNewTrip() {
+    const dateError = validateTripDateRange(tripStart, tripEnd);
+    if (dateError) {
+      setError(dateError);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const start = new Date();
-      const end = new Date();
-      end.setDate(end.getDate() + 7);
+      const { startDate, endDate } = tripRangeToIso(tripStart, tripEnd);
 
       const res = await fetch("/api/trip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: "My PlanT Journey",
-          startDate: start.toISOString(),
-          endDate: end.toISOString(),
+          startDate,
+          endDate,
           memberName: "Explorer",
         }),
       });
@@ -122,11 +135,22 @@ export function WelcomePage() {
             </div>
           </div>
 
+          <TripDateFields
+            start={tripStart}
+            end={tripEnd}
+            onStartChange={(v) => {
+              setTripStart(v);
+              if (tripEnd && v > tripEnd) setTripEnd(v);
+            }}
+            onEndChange={setTripEnd}
+            disabled={loading}
+          />
+
           <Button
             variant="secondary"
             className="w-full"
             onClick={handlePlantNewTrip}
-            disabled={loading}
+            disabled={loading || !tripStart || !tripEnd}
           >
             <Sprout className="mr-1" />
             Plant a New Trip
@@ -142,7 +166,9 @@ export function WelcomePage() {
           </div>
 
           <Button variant="outline" className="w-full" asChild>
-            <Link href="/discover">
+            <Link
+              href={`/discover?start=${tripStart}&end=${tripEnd}`}
+            >
               🌸 Match 探索
               <span className="sr-only">：滑卡選景點與美食，再建立旅程</span>
             </Link>

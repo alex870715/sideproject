@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Heart,
@@ -14,13 +14,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SwipeCard } from "@/components/discover/swipe-card";
+import { TripDateFields } from "@/components/trip-date-fields";
 import { DESTINATIONS } from "@/lib/discover/catalog";
+import {
+  getDefaultTripDateRange,
+  tripRangeToIso,
+  validateTripDateRange,
+} from "@/lib/trip-dates";
 import type { DiscoverCard, DiscoverDestination } from "@/types/discover";
+
+function initialTripDates(searchParams: URLSearchParams) {
+  const start = searchParams.get("start");
+  const end = searchParams.get("end");
+  if (start && end && validateTripDateRange(start, end) === null) {
+    return { start, end };
+  }
+  return getDefaultTripDateRange();
+}
 
 type Step = "destination" | "swipe" | "summary" | "planting";
 
 export function DiscoverFlow() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [tripStart, setTripStart] = useState(() =>
+    initialTripDates(searchParams).start
+  );
+  const [tripEnd, setTripEnd] = useState(() =>
+    initialTripDates(searchParams).end
+  );
   const [step, setStep] = useState<Step>("destination");
   const [destinationInput, setDestinationInput] = useState("福岡");
   const [meta, setMeta] = useState<DiscoverDestination | null>(null);
@@ -39,6 +61,11 @@ export function DiscoverFlow() {
   async function startDiscover(dest?: string) {
     const q = (dest ?? destinationInput).trim();
     if (!q) return;
+    const dateError = validateTripDateRange(tripStart, tripEnd);
+    if (dateError) {
+      setError(dateError);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -81,16 +108,23 @@ export function DiscoverFlow() {
 
   async function plantTrip() {
     if (liked.length === 0) return;
+    const dateError = validateTripDateRange(tripStart, tripEnd);
+    if (dateError) {
+      setError(dateError);
+      return;
+    }
     setStep("planting");
     setError(null);
     try {
+      const { startDate, endDate } = tripRangeToIso(tripStart, tripEnd);
       const res = await fetch("/api/discover/plant-trip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           destination: meta?.label ?? destinationInput,
           memberName: memberName.trim() || undefined,
-          days: 5,
+          startDate,
+          endDate,
           liked,
         }),
       });
@@ -134,6 +168,17 @@ export function DiscoverFlow() {
                 卡片依<strong>社群聲量</strong>排序（MVP 模擬資料）。
               </p>
             </div>
+
+            <TripDateFields
+              start={tripStart}
+              end={tripEnd}
+              onStartChange={(v) => {
+                setTripStart(v);
+                if (tripEnd && v > tripEnd) setTripEnd(v);
+              }}
+              onEndChange={setTripEnd}
+              disabled={loading}
+            />
 
             <div>
               <label className="mb-1 block text-xs font-medium text-emerald-800">

@@ -25,5 +25,7 @@ export type PlantTripFromDiscoverBody = {
   title?: string;
   memberName?: string;
   days?: number;
+  startDate?: string;
+  endDate?: string;
   liked: DiscoverCard[];
 };

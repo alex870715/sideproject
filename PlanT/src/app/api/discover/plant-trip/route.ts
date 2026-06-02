@@ -3,6 +3,7 @@ import { jsonError } from "@/lib/api";
 import { getDiscoverDeck } from "@/lib/discover/catalog";
 import { prisma } from "@/lib/prisma";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
+import { tripDayCount } from "@/lib/trip-dates";
 import { serializeTrip } from "@/lib/trip-serializer";
 import type { PlantTripFromDiscoverBody } from "@/types/discover";
 
@@ -19,13 +20,33 @@ export async function POST(request: NextRequest) {
 
     const deck = getDiscoverDeck(body.destination);
     const destLabel = deck?.destination.label ?? body.destination;
-    const days = Math.min(Math.max(body.days ?? 5, 1), 14);
 
-    const startDate = new Date();
-    startDate.setHours(9, 0, 0, 0);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + days - 1);
-    endDate.setHours(18, 0, 0, 0);
+    let startDate: Date;
+    let endDate: Date;
+
+    if (body.startDate && body.endDate) {
+      startDate = new Date(body.startDate);
+      endDate = new Date(body.endDate);
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return jsonError("Invalid date format", 400);
+      }
+      if (endDate < startDate) {
+        return jsonError("endDate must be on or after startDate", 400);
+      }
+      startDate.setHours(9, 0, 0, 0);
+      if (endDate.getHours() === 0 && endDate.getMinutes() === 0) {
+        endDate.setHours(18, 0, 0, 0);
+      }
+    } else {
+      const days = Math.min(Math.max(body.days ?? 5, 1), 14);
+      startDate = new Date();
+      startDate.setHours(9, 0, 0, 0);
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + days - 1);
+      endDate.setHours(18, 0, 0, 0);
+    }
+
+    const days = Math.min(tripDayCount(startDate, endDate), 14);
 
     const seedCode = await generateUniqueSeedCode();
     const title =

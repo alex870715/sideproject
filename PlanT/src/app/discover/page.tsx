@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { DiscoverFlow } from "@/components/discover/discover-flow";
 
 export const metadata = {
@@ -6,5 +7,15 @@ export const metadata = {
 };
 
 export default function DiscoverPage() {
-  return <DiscoverFlow />;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center text-emerald-700">
+          載入中…
+        </div>
+      }
+    >
+      <DiscoverFlow />
+    </Suspense>
+  );
 }
