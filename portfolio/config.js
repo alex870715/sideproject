@@ -13,7 +13,7 @@
   var PROJECT_URLS = {
     "chow-it": "__URL_CHOWIT__",
     "earth-online": "https://earth-online-three.vercel.app/",
-    "plant": "https://vercel.com/alex870715s-projects/plan-t/3LDTWGzyS4EJcSftyfueXb4vH6og",
+    "plant": "https://plan-t-pied.vercel.app/",
     "stock-oracle": "https://stockoracle-mwhiheuk22sp8vy2yufgy9.streamlit.app/",
   };
 
