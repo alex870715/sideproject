@@ -1,14 +1,11 @@
-# 僅部署 Portfolio 靜態首頁到 GitHub Pages（不含四個 app 後端）
-# 若要用「一個網址操作全部 app」，請改用 render.yaml（見 DEPLOY.md）
+# Portfolio 靜態首頁 → GitHub Pages
+# 首次使用前：Repo Settings → Pages → Source 選「GitHub Actions」（或已由 gh 指令啟用）
 
 name: Deploy portfolio to GitHub Pages
 
 on:
   push:
     branches: [main, master]
-    paths:
-      - "portfolio/**"
-      - ".github/workflows/deploy-portfolio-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -28,9 +25,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
