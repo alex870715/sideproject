@@ -24,7 +24,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Inject app URLs for GitHub Pages links
         env:
@@ -34,7 +34,13 @@ jobs:
           URL_PLANT: ${{ secrets.URL_PLANT }}
           URL_EARTHONLINE: ${{ secrets.URL_EARTHONLINE }}
         run: |
-          inject() { var="$1"; val="$2"; [ -n "$val" ] && sed -i "s|$var|$val|g" portfolio/config.js; }
+          # bash -e: empty secret must not make [ -n "$val" ] fail the job
+          inject() {
+            local var="$1" val="$2"
+            if [ -n "$val" ]; then
+              sed -i "s|${var}|${val}|g" portfolio/config.js
+            fi
+          }
           inject "__APPS_ORIGIN__" "$APPS_ORIGIN"
           inject "__URL_STOCKORACLE__" "$URL_STOCKORACLE"
           inject "__URL_CHOWIT__" "$URL_CHOWIT"
@@ -43,10 +49,10 @@ jobs:
           echo "URL injection done (unset secrets keep placeholders)."
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: portfolio
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
