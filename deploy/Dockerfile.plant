@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY PlanT/package.json PlanT/package-lock.json ./
+RUN npm ci
+
+COPY PlanT/ .
+
+ARG NEXT_PUBLIC_BASE_PATH=/plant
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+ENV NODE_ENV=production
+
+RUN npx prisma generate && npm run build
+
+COPY deploy/plant-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 3000
+ENTRYPOINT ["/entrypoint.sh"]

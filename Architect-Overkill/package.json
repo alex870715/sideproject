@@ -1,0 +1,19 @@
+{
+  "name": "architect-overkill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "overengine": "./cli/overengine.mjs"
+  },
+  "scripts": {
+    "overengine": "node cli/overengine.mjs",
+    "vendor:extension": "node scripts/sync-extension-vendor.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@mediapipe/tasks-vision": "^0.10.35"
+  }
+}

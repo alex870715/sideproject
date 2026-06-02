@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "GitMind-Map Visualize",
+  "version": "0.1.0",
+  "description": "在 GitHub 儲存庫頁加入 Visualize，開啟 GitMind-Map Web App · Adds a Visualize control on GitHub repos to open the GitMind-Map web app",
+  "permissions": ["storage"],
+  "host_permissions": ["https://github.com/*"],
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

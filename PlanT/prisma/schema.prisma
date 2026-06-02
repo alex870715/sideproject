@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Trip {
+  id        String   @id @default(cuid())
+  seedCode  String   @unique @db.Char(6)
+  title     String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  spots   Spot[]
+  members Member[]
+}
+
+model Spot {
+  id        String   @id @default(cuid())
+  tripId    String
+  memberId  String?
+  name      String
+  latitude  Float
+  longitude Float
+  openHours String?
+  phone     String?
+  notes        String?
+  scheduledAt  DateTime?
+  isTrunk      Boolean   @default(true)
+  sortOrder    Int       @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip   Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+  @@index([memberId])
+}
+
+model Member {
+  id        String   @id @default(cuid())
+  tripId    String
+  name      String
+  email     String?
+  createdAt DateTime @default(now())
+
+  trip  Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  spots Spot[]
+
+  @@index([tripId])
+}

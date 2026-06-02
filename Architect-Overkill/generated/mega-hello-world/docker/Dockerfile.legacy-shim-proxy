@@ -1,0 +1,3 @@
+FROM scratch
+# 「我們在生產環境用 distroless，這裡先留一空映像以示謙卑。」
+# service: legacy-shim-proxy

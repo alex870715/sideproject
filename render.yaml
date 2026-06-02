@@ -1,0 +1,50 @@
+# Render Blueprint — 從 GitHub 一鍵佈署全站（不需本機 Docker）
+# 使用方式：render.com → New → Blueprint → 連接此 repo
+#
+# 免費方案注意：閒置 15 分鐘會休眠，首次喚醒約 1 分鐘；建置可能 15–30 分鐘。
+
+databases:
+  - name: plant-db
+    plan: free
+    databaseName: plant
+    user: plant
+
+services:
+  # PlanT（Next.js + Prisma）— 內網服務
+  - type: pserv
+    name: plant
+    runtime: docker
+    dockerfilePath: deploy/Dockerfile.plant
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: plant-db
+          property: connectionString
+      - key: NEXT_PUBLIC_BASE_PATH
+        value: /plant
+
+  # StockOracle（Streamlit）— 內網服務
+  - type: pserv
+    name: stockoracle
+    runtime: docker
+    dockerfilePath: deploy/Dockerfile.stockoracle
+    dockerContext: .
+    plan: starter
+
+  # 對外入口：Portfolio + Chow-It + Earth Online 靜態 + 反向代理
+  - type: web
+    name: gateway
+    runtime: docker
+    dockerfilePath: deploy/Dockerfile.gateway
+    dockerContext: .
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: EXPO_PUBLIC_MAPBOX_TOKEN
+        sync: false
+      - key: EXPO_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: EXPO_PUBLIC_SUPABASE_ANON_KEY
+        sync: false

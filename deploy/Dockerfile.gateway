@@ -1,0 +1,46 @@
+# ---------- Chow-It static web ----------
+FROM node:20-bookworm AS chow-build
+WORKDIR /app
+COPY Chow-it/package.json Chow-it/package-lock.json ./
+RUN npm ci
+COPY Chow-it/ .
+RUN node -e "\
+  const fs=require('fs');\
+  const j=JSON.parse(fs.readFileSync('app.json','utf8'));\
+  j.expo.web={...(j.expo.web||{}),output:'static',bundler:'metro',baseUrl:'/chow-it'};\
+  fs.writeFileSync('app.json',JSON.stringify(j,null,2));"
+ENV EXPO_NO_TELEMETRY=1
+RUN npx expo export -p web --output-dir /out/chow-it
+
+# ---------- Earth Online static web ----------
+FROM node:20-bookworm AS earth-build
+WORKDIR /app
+COPY EarthOnline/mobile/package.json EarthOnline/mobile/package-lock.json ./
+RUN npm ci
+COPY EarthOnline/mobile/ .
+ARG EXPO_PUBLIC_MAPBOX_TOKEN=""
+ARG EXPO_PUBLIC_SUPABASE_URL=""
+ARG EXPO_PUBLIC_SUPABASE_ANON_KEY=""
+ENV EXPO_PUBLIC_MAPBOX_TOKEN=$EXPO_PUBLIC_MAPBOX_TOKEN
+ENV EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL
+ENV EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY
+RUN node -e "\
+  const fs=require('fs');\
+  const j=JSON.parse(fs.readFileSync('app.json','utf8'));\
+  j.expo.web={output:'static',bundler:'metro',baseUrl:'/earth-online',favicon:'./assets/icon.png'};\
+  fs.writeFileSync('app.json',JSON.stringify(j,null,2));"
+ENV EXPO_NO_TELEMETRY=1
+RUN npx expo export -p web --output-dir /out/earth-online
+
+# ---------- Nginx gateway ----------
+FROM nginx:alpine
+
+COPY portfolio/ /usr/share/nginx/html/portfolio/
+COPY --from=chow-build /out/chow-it /usr/share/nginx/html/chow-it
+COPY --from=earth-build /out/earth-online /usr/share/nginx/html/earth-online
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+EXPOSE 80
+ENTRYPOINT ["/docker-entrypoint.sh"]

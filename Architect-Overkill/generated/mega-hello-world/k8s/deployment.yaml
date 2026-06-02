@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: architect-overkill-mesh
+  labels:
+    tier: needless-complexity
+spec:
+  replicas: 11
+  selector:
+    matchLabels:
+      app: mega-hello
+  template:
+    metadata:
+      labels:
+        app: mega-hello
+    spec:
+      containers:
+      - name: api_gateway
+        image: your-registry.biz/architect-overkill/api-gateway:v0.2.0-enterprise
+      - name: greeting_core
+        image: your-registry.biz/architect-overkill/greeting-core:v0.6.0-enterprise
+      - name: observability_sidecar
+        image: your-registry.biz/architect-overkill/observability-sidecar:v0.4.0-enterprise
+      - name: policy_enforcer
+        image: your-registry.biz/architect-overkill/policy-enforcer:v0.3.0-enterprise
+      - name: legacy_shim_proxy
+        image: your-registry.biz/architect-overkill/legacy-shim-proxy:v0.7.0-enterprise
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mega-hello-lb
+spec:
+  selector:
+    app: mega-hello
+  ports:
+    - port: 80
+      targetPort: 8080

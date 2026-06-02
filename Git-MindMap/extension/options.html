@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <title>GitMind-Map 設定 · Settings</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 16px;
+        max-width: 480px;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      button {
+        margin-top: 12px;
+        padding: 8px 14px;
+      }
+      #status {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #2563eb;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>GitMind-Map</h1>
+    <p>
+      設定視覺化 Web App 的網址（勿以斜線結尾）。本機開發預設為 Vite。
+    </p>
+    <p>
+      Base URL of the visualization app (no trailing slash). Local dev defaults to
+      the Vite dev server.
+    </p>
+    <label for="origin">App Origin · 應用程式網址</label>
+    <input id="origin" type="url" placeholder="http://127.0.0.1:5173" />
+    <button id="save" type="button">儲存 · Save</button>
+    <div id="status"></div>
+    <script src="options.js"></script>
+  </body>
+</html>

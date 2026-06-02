@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <title>Boss Defense</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        width: 280px;
+        padding: 12px;
+      }
+      button {
+        width: 100%;
+        padding: 8px;
+        margin: 4px 0;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <p style="margin: 0 0 8px; font-weight: 600">老闆防禦模式</p>
+    <button id="panic-matrix">🔴 老闆來了 · 矩陣編譯</button>
+    <button id="panic-grafana">📊 老闆來了 · Grafana 儀表</button>
+    <hr style="margin: 10px 0; border: 0; border-top: 1px solid #e5e7eb" />
+    <label style="font-size: 12px">觸發靈敏度（臉框佔畫面比例）</label>
+    <input id="sensitivity" type="range" min="1" max="100" value="52" />
+    <button id="face-start-matrix">📷 開始 · 鏡頭偵測（矩陣）</button>
+    <button id="face-start-grafana">📷 開始 · 鏡頭偵測（Grafana）</button>
+    <button id="face-stop">⏹ 停止鏡頭偵測</button>
+    <div id="camera-anchor" aria-hidden="true"></div>
+    <p id="face-status" style="font-size: 11px; color: #6b7280; margin: 6px 0 0"></p>
+    <p style="font-size: 10px; color: #9ca3af; line-height: 1.35; margin: 8px 0 0">
+      鏡頭在<strong>本 Popup</strong>內請求（Chrome 要求「點擊」與<code>getUserMedia</code>同一視窗）；偵測進行中請<strong>勿關閉此 Popup</strong>。<br />
+      除錯：右鍵擴充圖示 → <strong>檢查快顯</strong>，Console 搜尋 <code>BossDefense:PopupRunner</code>。
+    </p>
+    <button id="calm">🟢 解除偽裝</button>
+    <button id="audit"> quietly 跑 npm audit（背景心理安慰）</button>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

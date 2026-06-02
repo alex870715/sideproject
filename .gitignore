@@ -1,0 +1,24 @@
+.DS_Store
+.env
+*.log
+
+# Node
+**/node_modules/
+**/.next/
+**/.expo/
+**/dist/
+
+# Python
+**/.venv/
+**/__pycache__/
+**/.cache/
+StockOracle/.cache/
+
+# IDE
+**/.vscode/
+.idea/
+
+# PlanT local DB (cloud uses Render Postgres)
+PlanT/.env
+
+EarthOnline/mobile/.env

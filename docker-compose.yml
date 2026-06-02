@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: plant
+      POSTGRES_PASSWORD: plant
+      POSTGRES_DB: plant
+    volumes:
+      - plant_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plant -d plant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  plant:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.plant
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://plant:plant@postgres:5432/plant?schema=public
+      NEXT_PUBLIC_BASE_PATH: /plant
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  stockoracle:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.stockoracle
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.gateway
+      args:
+        EXPO_PUBLIC_MAPBOX_TOKEN: ${EXPO_PUBLIC_MAPBOX_TOKEN:-}
+        EXPO_PUBLIC_SUPABASE_URL: ${EXPO_PUBLIC_SUPABASE_URL:-}
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: ${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - plant
+      - stockoracle
+
+volumes:
+  plant_pg_data:
