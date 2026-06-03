@@ -85,6 +85,50 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Deploy on Vercel
+
+Vercel does **not** read your local `.env`. You must add a **hosted PostgreSQL** URL in the Vercel dashboard.
+
+### 1. Create a cloud database
+
+Pick one (all work with Prisma):
+
+- [Neon](https://neon.tech) — free tier, good Prisma docs
+- [Supabase](https://supabase.com) → Project Settings → Database → connection string
+- [Vercel Postgres](https://vercel.com/storage/postgres) — integrates with the Vercel project
+
+Copy the **PostgreSQL** connection string. It looks like:
+
+```text
+postgresql://user:password@host.region.provider.com/neondb?sslmode=require
+```
+
+For **Neon**, prefer the **pooled** connection string in serverless (often port `5432` with `-pooler` in the host, or labeled “Pooled” in the dashboard).
+
+### 2. Add `DATABASE_URL` in Vercel
+
+1. Vercel project → **Settings** → **Environment Variables**
+2. Name: `DATABASE_URL`
+3. Value: your cloud connection string (include `?sslmode=require` if the provider requires SSL)
+4. Enable for **Production** (and Preview if you use preview deploys)
+5. **Save**, then **Redeploy** (env vars are applied on the next build/deploy)
+
+### 3. Create tables in production (once)
+
+From your machine, point Prisma at the **same** URL you set on Vercel:
+
+```bash
+DATABASE_URL="postgresql://..." npm run db:push
+```
+
+There is no `prisma/migrations` folder in this repo; `db push` syncs `schema.prisma` to the remote DB.
+
+### 4. Verify
+
+After redeploy, `POST /api/trip` should succeed. If you still see `Environment variable not found: DATABASE_URL`, the variable name is wrong or the deployment was not redeployed after saving.
+
+**Note:** `localhost` URLs in `.env` only work on your Mac, not on Vercel.
+
 ## API Routes
 
 | Method | Path | Description |

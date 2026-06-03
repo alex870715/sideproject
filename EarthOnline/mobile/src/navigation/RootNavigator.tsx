@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, View } from 'react-native';
 import { PlayerProfileScreen, PLAYER_PROGRESS_FEATURE } from '../features/playerProgress';
+import { AUTH_FEATURE } from '../features/auth/config';
 import { useAuthSession } from '../hooks/useAuthSession';
 import { AuthScreen } from '../screens/AuthScreen';
 import { ExploreScreen } from '../screens/ExploreScreen';
@@ -114,22 +115,22 @@ export function RootNavigator() {
         contentStyle: { backgroundColor: '#0b1220' },
       }}
     >
-      {!supabaseConfigured ? (
-        <Stack.Screen
-          name="GuestTabs"
-          component={GuestTabsScreen}
-          options={{ headerShown: false }}
-        />
-      ) : session ? (
+      {session ? (
         <Stack.Screen
           name="UserTabs"
           component={UserTabsScreen}
           options={{ headerShown: false }}
         />
-      ) : (
+      ) : AUTH_FEATURE.requireSignIn && supabaseConfigured ? (
         <Stack.Screen
           name="AuthFlow"
           component={AuthStack}
+          options={{ headerShown: false }}
+        />
+      ) : (
+        <Stack.Screen
+          name="GuestTabs"
+          component={GuestTabsScreen}
           options={{ headerShown: false }}
         />
       )}

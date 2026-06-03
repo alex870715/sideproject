@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { MapPin, Utensils, Flame } from "lucide-react";
 import { popularityLabel } from "@/lib/discover/catalog";
 import type { DiscoverCard } from "@/types/discover";
@@ -7,14 +8,15 @@ import type { DiscoverCard } from "@/types/discover";
 type SwipeCardProps = {
   card: DiscoverCard;
   style?: React.CSSProperties;
+  className?: string;
 };
 
-export function SwipeCard({ card, style }: SwipeCardProps) {
+export function SwipeCard({ card, style, className }: SwipeCardProps) {
   const isFood = card.category === "food";
 
   return (
     <div
-      className="absolute inset-0 flex flex-col overflow-hidden rounded-3xl border-2 border-emerald-200 bg-white shadow-2xl"
+      className={`absolute inset-0 flex flex-col overflow-hidden rounded-3xl border-2 border-emerald-200 bg-white shadow-2xl ${className ?? ""}`}
       style={style}
     >
       <div
@@ -71,5 +73,41 @@ export function SwipeCard({ card, style }: SwipeCardProps) {
         </p>
       </div>
     </div>
+  );
+}
+
+/** 滑出後疊在最上層，往左／右飛出並淡出（不彈回） */
+export function ExitingSwipeCard({
+  card,
+  dir,
+}: {
+  card: DiscoverCard;
+  dir: "left" | "right";
+}) {
+  const [flyOut, setFlyOut] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setFlyOut(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  return (
+    <SwipeCard
+      card={card}
+      className="pointer-events-none"
+      style={{
+        zIndex: 2,
+        transform: flyOut
+          ? dir === "left"
+            ? "translateX(-130%) rotate(-14deg)"
+            : "translateX(130%) rotate(14deg)"
+          : undefined,
+        opacity: flyOut ? 0 : 1,
+        transition:
+          "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease",
+      }}
+    />
   );
 }

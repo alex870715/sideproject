@@ -70,7 +70,7 @@
           "好友聚餐時的決策助手：30 秒口味測驗建立 Taste Profile、用餐日記月曆、轉盤／抽抽樂／跳跳樂幫你決定吃什麼，還有「談判室」讓代理人代大家協調點餐。",
         stack: ["Expo", "React Native", "Tamagui"],
         hrefLabel: "進入 Chow-It",
-        note: "Web 版 · 建議 Vercel 部署 Expo export",
+        note: "Web Demo · Vercel",
       },
       {
         id: "earth-online",
@@ -83,7 +83,7 @@
           "把現實世界走過的路變成地圖上的探索：迷霧解鎖、區域活動、成就與等級，支援匯入 Google 定位紀錄，在地球儀上慢慢「開圖」。",
         stack: ["Expo", "React Native", "Mapbox"],
         hrefLabel: "進入 Earth Online",
-        note: "Web demo · Vercel；完整版可連 App Store",
+        note: "Web demo · Vercel",
       },
       {
         id: "plant",
@@ -96,7 +96,7 @@
           "智慧團體旅行規劃：主幹與分支路線（Trunk & Sprouts）、6 碼 seed 分享行程、地圖協作，還能用 AI 生成童話風格旅行小冊。",
         stack: ["Next.js 15", "Prisma", "PostgreSQL", "OpenAI"],
         hrefLabel: "進入 PlanT",
-        note: "Next.js · 建議 Vercel + Neon Postgres",
+        note: "Web Demo · Vercel",
       },
       {
         id: "stock-oracle",

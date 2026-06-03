@@ -470,6 +470,45 @@ export function ExploreScreen() {
           <Text style={styles.hint}>{t('explore.coordsHint')}</Text>
         </View>
 
+        <Text style={styles.section}>{t('explore.simWalk')}</Text>
+        <Text style={styles.hint}>{t('explore.simWalkHint')}</Text>
+        <View style={styles.rowWrap}>
+          {PRESET_KEYS.map((key) => (
+            <Pressable
+              key={key}
+              style={({ pressed }) => [
+                styles.chip,
+                pressed && styles.chipPressed,
+              ]}
+              onPress={() => visitLocation(PRESET_POINTS[key])}
+            >
+              <Text style={styles.chipText}>
+                {t(`explore.presets.${key}` as 'explore.presets.taipei101')}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable
+            style={({ pressed }) => [
+              styles.chip,
+              styles.chipAlt,
+              pressed && styles.chipPressed,
+            ]}
+            onPress={jitter}
+          >
+            <Text style={styles.chipText}>{t('explore.jitter')}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.chip,
+              styles.chipAlt,
+              pressed && styles.chipPressed,
+            ]}
+            onPress={jitterLarge}
+          >
+            <Text style={styles.chipText}>{t('explore.jitterLarge')}</Text>
+          </Pressable>
+        </View>
+
         {showDevExploreTools ? (
           <>
             <View style={styles.devBanner}>
@@ -477,44 +516,6 @@ export function ExploreScreen() {
                 <Text style={styles.devBadgeText}>{t('explore.devBadge')}</Text>
               </View>
               <Text style={styles.devBannerBody}>{t('explore.devToolsBanner')}</Text>
-            </View>
-
-            <Text style={styles.section}>{t('explore.simWalk')}</Text>
-            <View style={styles.rowWrap}>
-              {PRESET_KEYS.map((key) => (
-                <Pressable
-                  key={key}
-                  style={({ pressed }) => [
-                    styles.chip,
-                    pressed && styles.chipPressed,
-                  ]}
-                  onPress={() => visitLocation(PRESET_POINTS[key])}
-                >
-                  <Text style={styles.chipText}>
-                    {t(`explore.presets.${key}` as 'explore.presets.taipei101')}
-                  </Text>
-                </Pressable>
-              ))}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.chip,
-                  styles.chipAlt,
-                  pressed && styles.chipPressed,
-                ]}
-                onPress={jitter}
-              >
-                <Text style={styles.chipText}>{t('explore.jitter')}</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.chip,
-                  styles.chipAlt,
-                  pressed && styles.chipPressed,
-                ]}
-                onPress={jitterLarge}
-              >
-                <Text style={styles.chipText}>{t('explore.jitterLarge')}</Text>
-              </Pressable>
             </View>
 
             <DevMoveJoystick
@@ -589,12 +590,7 @@ export function ExploreScreen() {
               <Text style={styles.dangerText}>{t('explore.clearPins')}</Text>
             </Pressable>
           </>
-        ) : (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('explore.devToolsHiddenTitle')}</Text>
-            <Text style={styles.hint}>{t('explore.devToolsHiddenHint')}</Text>
-          </View>
-        )}
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>

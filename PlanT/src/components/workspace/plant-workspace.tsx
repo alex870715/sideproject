@@ -21,6 +21,7 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
   const [error, setError] = useState<string | null>(null);
   const [discoverSpot, setDiscoverSpot] = useState<SpotDto | null>(null);
   const [discoverOpen, setDiscoverOpen] = useState(false);
+  const [mapDayId, setMapDayId] = useState("all");
 
   const fetchTrip = useCallback(async () => {
     setLoading(true);
@@ -86,28 +87,36 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
         </div>
       </header>
 
-      <div className="grid flex-1 gap-4 p-4 lg:grid-cols-2 lg:p-6">
-        <div className="flex flex-col gap-4">
+      <div className="grid flex-1 gap-4 p-4 lg:grid-cols-2 lg:items-start lg:p-6">
+        <div className="flex min-w-0 flex-col gap-4">
           <MembersPanel trip={trip} onTripUpdate={setTrip} />
           <TimelinePanel
             trip={trip}
             onTripUpdate={setTrip}
+            onDaySelect={setMapDayId}
             onDiscoverSpot={(spot) => {
               setDiscoverSpot(spot);
               setDiscoverOpen(true);
             }}
           />
         </div>
-        <TripMap
-          spots={trip.spots}
-          tripTitle={trip.title}
-          tripStartDate={trip.startDate}
-          tripEndDate={trip.endDate}
-          onSpotSelect={(spot) => {
-            setDiscoverSpot(spot);
-            setDiscoverOpen(true);
-          }}
-        />
+        {/* 右欄：正方形地圖，不跟左側時間軸等高拉伸 */}
+        <div className="w-full lg:sticky lg:top-4 lg:self-start">
+          <div className="mx-auto aspect-square w-full max-w-[min(100%,520px)] lg:max-w-none">
+            <TripMap
+              spots={trip.spots}
+              tripTitle={trip.title}
+              tripStartDate={trip.startDate}
+              tripEndDate={trip.endDate}
+              selectedDayId={mapDayId}
+              onDayChange={setMapDayId}
+              onSpotSelect={(spot) => {
+                setDiscoverSpot(spot);
+                setDiscoverOpen(true);
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <SpotDiscoverDialog

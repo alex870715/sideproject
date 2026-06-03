@@ -13,6 +13,7 @@
     "db:stop": "bash scripts/stop-db.sh",
     "db:studio": "prisma studio",
     "db:seed:fukuoka": "npx tsx prisma/seed-fukuoka.ts",
+    "push:github": "bash scripts/push-to-github.sh",
     "postinstall": "prisma generate"
   },
   "dependencies": {

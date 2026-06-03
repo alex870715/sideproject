@@ -24,25 +24,36 @@ export async function POST(request: NextRequest) {
     let startDate: Date;
     let endDate: Date;
 
+    let tripStartMidnight: Date;
+    let tripEndMidnight: Date;
+
     if (body.startDate && body.endDate) {
-      startDate = new Date(body.startDate);
-      endDate = new Date(body.endDate);
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      tripStartMidnight = new Date(body.startDate);
+      tripEndMidnight = new Date(body.endDate);
+      if (
+        isNaN(tripStartMidnight.getTime()) ||
+        isNaN(tripEndMidnight.getTime())
+      ) {
         return jsonError("Invalid date format", 400);
       }
-      if (endDate < startDate) {
+      tripStartMidnight.setHours(0, 0, 0, 0);
+      tripEndMidnight.setHours(0, 0, 0, 0);
+      if (tripEndMidnight < tripStartMidnight) {
         return jsonError("endDate must be on or after startDate", 400);
       }
+      startDate = new Date(tripStartMidnight);
       startDate.setHours(9, 0, 0, 0);
-      if (endDate.getHours() === 0 && endDate.getMinutes() === 0) {
-        endDate.setHours(18, 0, 0, 0);
-      }
+      endDate = new Date(tripEndMidnight);
+      endDate.setHours(18, 0, 0, 0);
     } else {
       const days = Math.min(Math.max(body.days ?? 5, 1), 14);
-      startDate = new Date();
+      tripStartMidnight = new Date();
+      tripStartMidnight.setHours(0, 0, 0, 0);
+      tripEndMidnight = new Date(tripStartMidnight);
+      tripEndMidnight.setDate(tripEndMidnight.getDate() + days - 1);
+      startDate = new Date(tripStartMidnight);
       startDate.setHours(9, 0, 0, 0);
-      endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + days - 1);
+      endDate = new Date(tripEndMidnight);
       endDate.setHours(18, 0, 0, 0);
     }
 
@@ -69,9 +80,10 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < body.liked.length; i++) {
       const card = body.liked[i];
       const dayOffset = Math.min(Math.floor(i / spotsPerDay), days - 1);
-      const scheduledAt = new Date(startDate);
-      scheduledAt.setDate(scheduledAt.getDate() + dayOffset);
-      scheduledAt.setHours(10 + (i % spotsPerDay) * 2, 0, 0, 0);
+      const slotInDay = i % spotsPerDay;
+      const scheduledAt = new Date(tripStartMidnight);
+      scheduledAt.setDate(tripStartMidnight.getDate() + dayOffset);
+      scheduledAt.setHours(10 + slotInDay * 2, 0, 0, 0);
 
       await prisma.spot.create({
         data: {

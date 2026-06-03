@@ -14,12 +14,14 @@ type TimelinePanelProps = {
   trip: TripDto;
   onTripUpdate: (trip: TripDto) => void;
   onDiscoverSpot: (spot: SpotDto) => void;
+  onDaySelect?: (dayGroupId: string) => void;
 };
 
 export function TimelinePanel({
   trip,
   onTripUpdate,
   onDiscoverSpot,
+  onDaySelect,
 }: TimelinePanelProps) {
   const [graftingId, setGraftingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -108,6 +110,7 @@ export function TimelinePanel({
             <SortableDayTimeline
               trip={trip}
               isTrunk
+              onDaySelect={onDaySelect}
               onEdit={(s) => {
                 setEditingSpot(s);
                 setEditOpen(true);
@@ -133,6 +136,7 @@ export function TimelinePanel({
             <SortableDayTimeline
               trip={trip}
               isTrunk={false}
+              onDaySelect={onDaySelect}
               onEdit={(s) => {
                 setEditingSpot(s);
                 setEditOpen(true);

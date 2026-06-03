@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SwipeCard } from "@/components/discover/swipe-card";
+import {
+  ExitingSwipeCard,
+  SwipeCard,
+} from "@/components/discover/swipe-card";
 import { TripDateFields } from "@/components/trip-date-fields";
 import { DESTINATIONS } from "@/lib/discover/catalog";
 import {
@@ -50,7 +53,10 @@ export function DiscoverFlow() {
   const [index, setIndex] = useState(0);
   const [liked, setLiked] = useState<DiscoverCard[]>([]);
   const [passed, setPassed] = useState<DiscoverCard[]>([]);
-  const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
+  const [exiting, setExiting] = useState<{
+    card: DiscoverCard;
+    dir: "left" | "right";
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [memberName, setMemberName] = useState("");
@@ -89,21 +95,28 @@ export function DiscoverFlow() {
   }
 
   function handleSwipe(direction: "left" | "right") {
-    if (!current) return;
-    setSwipeDir(direction);
-    setTimeout(() => {
-      if (direction === "right") {
-        setLiked((prev) => [...prev, current]);
-      } else {
-        setPassed((prev) => [...prev, current]);
-      }
-      setSwipeDir(null);
-      if (index + 1 >= deck.length) {
-        setStep("summary");
-      } else {
-        setIndex((i) => i + 1);
-      }
-    }, 280);
+    if (!current || exiting) return;
+
+    const swiped = current;
+    const isLast = index + 1 >= deck.length;
+
+    if (direction === "right") {
+      setLiked((prev) => [...prev, swiped]);
+    } else {
+      setPassed((prev) => [...prev, swiped]);
+    }
+
+    setExiting({ card: swiped, dir: direction });
+    if (!isLast) {
+      setIndex((i) => i + 1);
+    } else {
+      setIndex(deck.length);
+    }
+
+    window.setTimeout(() => {
+      setExiting(null);
+      if (isLast) setStep("summary");
+    }, 300);
   }
 
   async function plantTrip() {
@@ -185,7 +198,7 @@ export function DiscoverFlow() {
                 目的地
               </label>
               <Input
-                placeholder="例：福岡、台北、大阪"
+                placeholder="例：台北、東京、首爾、釜山、大阪、福岡"
                 value={destinationInput}
                 onChange={(e) => setDestinationInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && startDiscover()}
@@ -230,7 +243,7 @@ export function DiscoverFlow() {
           </div>
         )}
 
-        {step === "swipe" && current && (
+        {step === "swipe" && (current || exiting) && (
           <div className="flex flex-1 flex-col">
             <div className="mb-4">
               <div className="mb-1 flex justify-between text-xs text-emerald-700">
@@ -253,8 +266,8 @@ export function DiscoverFlow() {
               </p>
             </div>
 
-            <div className="relative mx-auto aspect-[3/4] w-full max-w-sm flex-1">
-              {deck[index + 1] && (
+            <div className="relative mx-auto aspect-[3/4] w-full max-w-sm flex-1 overflow-hidden">
+              {current && deck[index + 1] && (
                 <SwipeCard
                   card={deck[index + 1]}
                   style={{
@@ -264,20 +277,20 @@ export function DiscoverFlow() {
                   }}
                 />
               )}
-              <SwipeCard
-                card={current}
-                style={{
-                  zIndex: 1,
-                  transform:
-                    swipeDir === "left"
-                      ? "translateX(-120%) rotate(-12deg)"
-                      : swipeDir === "right"
-                        ? "translateX(120%) rotate(12deg)"
-                        : undefined,
-                  opacity: swipeDir ? 0 : 1,
-                  transition: "transform 0.28s ease, opacity 0.28s ease",
-                }}
-              />
+              {current && (
+                <SwipeCard
+                  key={current.id}
+                  card={current}
+                  style={{ zIndex: 1 }}
+                />
+              )}
+              {exiting && (
+                <ExitingSwipeCard
+                  key={`exit-${exiting.card.id}`}
+                  card={exiting.card}
+                  dir={exiting.dir}
+                />
+              )}
             </div>
 
             <div className="mt-6 flex justify-center gap-6 pb-4">
@@ -286,6 +299,7 @@ export function DiscoverFlow() {
                 size="lg"
                 className="h-14 w-14 rounded-full border-rose-200 text-rose-600 hover:bg-rose-50"
                 onClick={() => handleSwipe("left")}
+                disabled={!!exiting}
                 aria-label="跳過"
               >
                 <ThumbsDown className="h-6 w-6" />
@@ -294,6 +308,7 @@ export function DiscoverFlow() {
                 size="lg"
                 className="h-16 w-16 rounded-full bg-emerald-600 shadow-lg hover:bg-emerald-700"
                 onClick={() => handleSwipe("right")}
+                disabled={!!exiting}
                 aria-label="想去"
               >
                 <Heart className="h-7 w-7 fill-current" />
@@ -357,6 +372,7 @@ export function DiscoverFlow() {
                   setIndex(0);
                   setLiked([]);
                   setPassed([]);
+                  setExiting(null);
                 }}
               >
                 重新滑

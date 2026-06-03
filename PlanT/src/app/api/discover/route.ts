@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const deck = getDiscoverDeck(destination);
   if (!deck) {
     return jsonError(
-      "尚無此地區的探索資料，目前支援：福岡、台北、大阪",
+      "尚無此地區的探索資料，目前支援：台北、東京、大阪、福岡、首爾、釜山",
       404
     );
   }

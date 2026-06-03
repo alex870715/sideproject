@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -20,6 +20,7 @@ import {
   groupSpotsByDay,
   type MapDayFilter,
 } from "@/lib/spot-groups";
+import { computeMapViewTarget } from "@/lib/map-view";
 import { partitionSpots } from "@/lib/spots";
 import type { SpotDto } from "@/types/trip";
 import "leaflet/dist/leaflet.css";
@@ -30,18 +31,55 @@ type TripMapInnerProps = {
   tripStartDate: string;
   tripEndDate: string;
   onSpotSelect?: (spot: SpotDto) => void;
+  selectedDayId?: string;
+  onDayChange?: (dayId: string) => void;
 };
 
-function FitBounds({ spots, filterKey }: { spots: SpotDto[]; filterKey: string }) {
+/** 切換 Day 時同步地圖視角（setView / fitBounds） */
+function MapViewSync({
+  viewKey,
+  lat,
+  lng,
+  zoom,
+  bbox,
+}: {
+  viewKey: string;
+  lat: number | null;
+  lng: number | null;
+  zoom: number;
+  bbox: string | null;
+}) {
   const map = useMap();
 
+  useLayoutEffect(() => {
+    const apply = () => {
+      map.invalidateSize({ animate: false });
+      if (bbox) {
+        const [south, west, north, east] = bbox.split(",").map(Number);
+        map.fitBounds(
+          [
+            [south, west],
+            [north, east],
+          ],
+          { padding: [56, 56], maxZoom: 14, animate: false }
+        );
+      } else if (lat != null && lng != null) {
+        map.setView([lat, lng], zoom, { animate: false });
+      }
+    };
+
+    if (map.getContainer().clientHeight > 0) apply();
+    else map.whenReady(apply);
+  }, [map, viewKey, lat, lng, zoom, bbox]);
+
   useEffect(() => {
-    if (spots.length === 0) return;
-    const bounds = L.latLngBounds(
-      spots.map((s) => [s.latitude, s.longitude] as [number, number])
-    );
-    map.fitBounds(bounds, { padding: [56, 56], maxZoom: 14 });
-  }, [map, spots, filterKey]);
+    const container = map.getContainer();
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [map]);
 
   return null;
 }
@@ -132,19 +170,28 @@ export function TripMapInner({
   tripStartDate,
   tripEndDate,
   onSpotSelect,
+  selectedDayId: controlledDayId,
+  onDayChange,
 }: TripMapInnerProps) {
   const dayFilters = useMemo(
     () => buildMapDayFilters(spots, tripStartDate, tripEndDate),
     [spots, tripStartDate, tripEndDate]
   );
 
-  const [selectedDayId, setSelectedDayId] = useState("all");
+  const [internalDayId, setInternalDayId] = useState("all");
+  const selectedDayId = controlledDayId ?? internalDayId;
+
+  function selectDay(id: string) {
+    if (onDayChange) onDayChange(id);
+    else setInternalDayId(id);
+  }
 
   useEffect(() => {
     if (!dayFilters.some((f) => f.id === selectedDayId)) {
-      setSelectedDayId("all");
+      selectDay("all");
     }
-  }, [dayFilters, selectedDayId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when filters change
+  }, [dayFilters]);
 
   const activeFilter =
     dayFilters.find((f) => f.id === selectedDayId) ?? dayFilters[0];
@@ -159,6 +206,39 @@ export function TripMapInner({
   const visibleTrunk = activeFilter.trunkSpots;
   const visibleSprouts = activeFilter.sproutSpots;
   const visibleAll = [...visibleTrunk, ...visibleSprouts];
+
+  const mapViewTarget = useMemo(
+    () => computeMapViewTarget(visibleTrunk, visibleSprouts, isAllView),
+    [visibleTrunk, visibleSprouts, isAllView, selectedDayId]
+  );
+
+  const mapViewKey = useMemo(
+    () =>
+      `${selectedDayId}|${visibleTrunk.map((s) => s.id).join(",")}|${visibleSprouts.map((s) => s.id).join(",")}`,
+    [selectedDayId, visibleTrunk, visibleSprouts]
+  );
+
+  const mapFocus = useMemo(() => {
+    const target = mapViewTarget;
+    if (target.mode === "point") {
+      return {
+        lat: target.lat,
+        lng: target.lng,
+        zoom: target.zoom,
+        bbox: null as string | null,
+      };
+    }
+    if (target.mode === "bounds") {
+      const b = target.bounds;
+      return {
+        lat: null,
+        lng: null,
+        zoom: 12,
+        bbox: `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`,
+      };
+    }
+    return { lat: null, lng: null, zoom: 12, bbox: null };
+  }, [mapViewTarget]);
 
   const trunkRoute = useMemo(
     () =>
@@ -185,34 +265,34 @@ export function TripMapInner({
   const filterIndex = dayFilters.findIndex((f) => f.id === selectedDayId);
 
   function goPrevDay() {
-    if (filterIndex > 0) setSelectedDayId(dayFilters[filterIndex - 1].id);
+    if (filterIndex > 0) selectDay(dayFilters[filterIndex - 1].id);
   }
 
   function goNextDay() {
     if (filterIndex < dayFilters.length - 1) {
-      setSelectedDayId(dayFilters[filterIndex + 1].id);
+      selectDay(dayFilters[filterIndex + 1].id);
     }
   }
 
-  const defaultCenter =
-    visibleTrunk.length > 0
-      ? ([visibleTrunk[0].latitude, visibleTrunk[0].longitude] as [
-          number,
-          number,
-        ])
-      : visibleAll.length > 0
-        ? ([visibleAll[0].latitude, visibleAll[0].longitude] as [
-            number,
-            number,
-          ])
-        : FUKUOKA_CENTER;
+  const initialCenter = useMemo((): [number, number] => {
+    if (mapViewTarget.mode === "point") {
+      return [mapViewTarget.lat, mapViewTarget.lng];
+    }
+    if (mapViewTarget.mode === "bounds") {
+      const c = mapViewTarget.bounds.getCenter();
+      return [c.lat, c.lng];
+    }
+    const first = spots.find((s) => s.isTrunk) ?? spots[0];
+    if (first) return [first.latitude, first.longitude];
+    return FUKUOKA_CENTER;
+  }, [mapViewTarget, spots]);
 
   return (
-    <div className="relative flex h-full min-h-[360px] flex-col overflow-hidden rounded-xl border border-emerald-200 shadow-sm">
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-emerald-200 shadow-sm">
       <MapDayToolbar
         filters={dayFilters}
         selectedId={selectedDayId}
-        onSelect={setSelectedDayId}
+        onSelect={selectDay}
         onPrev={goPrevDay}
         onNext={goNextDay}
         canPrev={filterIndex > 0}
@@ -220,19 +300,24 @@ export function TripMapInner({
         activeFilter={activeFilter}
       />
 
-      <div className="relative min-h-[300px] flex-1">
+      <div className="relative min-h-0 flex-1">
         <MapContainer
-          key={selectedDayId}
-          center={defaultCenter}
+          center={initialCenter}
           zoom={11}
-          className="h-full min-h-[300px] w-full z-0"
+          className="absolute inset-0 z-0 h-full w-full"
           scrollWheelZoom
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <FitBounds spots={visibleAll} filterKey={selectedDayId} />
+          <MapViewSync
+            viewKey={mapViewKey}
+            lat={mapFocus.lat}
+            lng={mapFocus.lng}
+            zoom={mapFocus.zoom}
+            bbox={mapFocus.bbox}
+          />
 
           {trunkRoute.length >= 2 && (
             <Polyline

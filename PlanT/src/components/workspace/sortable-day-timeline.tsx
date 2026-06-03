@@ -37,6 +37,7 @@ import type { SpotDto, TripDto } from "@/types/trip";
 type SortableDayTimelineProps = {
   trip: TripDto;
   isTrunk: boolean;
+  onDaySelect?: (dayGroupId: string) => void;
   onEdit: (spot: SpotDto) => void;
   onDiscover: (spot: SpotDto) => void;
   onGraft?: (spotId: string) => void;
@@ -47,6 +48,7 @@ type SortableDayTimelineProps = {
 export function SortableDayTimeline({
   trip,
   isTrunk,
+  onDaySelect,
   onEdit,
   onDiscover,
   onGraft,
@@ -174,6 +176,7 @@ export function SortableDayTimeline({
             isOver={overContainerId === group.id}
             orderMap={orderMap}
             variant={isTrunk ? "trunk" : "sprout"}
+            onDaySelect={onDaySelect}
             onEdit={onEdit}
             onDiscover={onDiscover}
             onGraft={onGraft}
@@ -198,6 +201,7 @@ function DroppableDayColumn({
   isOver,
   orderMap,
   variant,
+  onDaySelect,
   onEdit,
   onDiscover,
   onGraft,
@@ -207,6 +211,7 @@ function DroppableDayColumn({
   isOver: boolean;
   orderMap: Map<string, string>;
   variant: "trunk" | "sprout";
+  onDaySelect?: (dayGroupId: string) => void;
   onEdit: (spot: SpotDto) => void;
   onDiscover: (spot: SpotDto) => void;
   onGraft?: (spotId: string) => void;
@@ -222,12 +227,24 @@ function DroppableDayColumn({
 
   return (
     <div>
-      <h4 className="sticky top-0 z-10 mb-2 rounded-md bg-emerald-100/90 px-2 py-1 text-xs font-bold text-emerald-900 backdrop-blur">
+      <button
+        type="button"
+        onClick={() => onDaySelect?.(group.id)}
+        className={cn(
+          "sticky top-0 z-10 mb-2 w-full rounded-md bg-emerald-100/90 px-2 py-1 text-left text-xs font-bold text-emerald-900 backdrop-blur transition-colors",
+          onDaySelect && "cursor-pointer hover:bg-emerald-200/90"
+        )}
+      >
         {group.label}
         <span className="ml-1 font-normal text-emerald-700">
           ({group.spots.length} 站)
         </span>
-      </h4>
+        {onDaySelect && group.spots.length > 0 && (
+          <span className="ml-1 text-[10px] font-normal text-emerald-600">
+            · 地圖
+          </span>
+        )}
+      </button>
 
       <div
         ref={setNodeRef}

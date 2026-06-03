@@ -8,7 +8,7 @@ const TripMapInner = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full min-h-[320px] items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50/30">
+      <div className="flex aspect-square w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50/30">
         <p className="text-sm text-emerald-700">載入地圖中…</p>
       </div>
     ),
@@ -21,6 +21,8 @@ type TripMapProps = {
   tripStartDate: string;
   tripEndDate: string;
   onSpotSelect?: (spot: SpotDto) => void;
+  selectedDayId?: string;
+  onDayChange?: (dayId: string) => void;
 };
 
 export function TripMap({
@@ -29,6 +31,8 @@ export function TripMap({
   tripStartDate,
   tripEndDate,
   onSpotSelect,
+  selectedDayId,
+  onDayChange,
 }: TripMapProps) {
   return (
     <TripMapInner
@@ -37,6 +41,8 @@ export function TripMap({
       tripStartDate={tripStartDate}
       tripEndDate={tripEndDate}
       onSpotSelect={onSpotSelect}
+      selectedDayId={selectedDayId}
+      onDayChange={onDayChange}
     />
   );
 }

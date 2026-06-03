@@ -8,19 +8,32 @@ export type SpotDayGroup = {
   spots: SpotDto[];
 };
 
+/** 以使用者本地日曆產生 YYYY-MM-DD（避免 toISOString 時區錯位） */
 export function dateKeyFromIso(iso: string): string {
-  const d = new Date(iso);
+  return dateKeyFromLocalDate(new Date(iso));
+}
+
+export function dateKeyFromLocalDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
-function compareSpotsInGroup(a: SpotDto, b: SpotDto): number {
+export function compareSpotsInGroup(a: SpotDto, b: SpotDto): number {
   if (a.scheduledAt && b.scheduledAt) {
     return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
   }
   return a.sortOrder - b.sortOrder;
+}
+
+export function sortSpotsChronologically(spots: SpotDto[]): SpotDto[] {
+  return [...spots].sort(compareSpotsInGroup);
+}
+
+/** 當日行程的第一站（與時間軸排序一致） */
+export function getLeadingSpot(spots: SpotDto[]): SpotDto | undefined {
+  return sortSpotsChronologically(spots)[0];
 }
 
 export function groupSpotsByDay(
@@ -28,12 +41,16 @@ export function groupSpotsByDay(
   tripStartDate: string,
   tripEndDate: string
 ): SpotDayGroup[] {
-  const tripStart = new Date(tripStartDate);
-  const tripEnd = new Date(tripEndDate);
+  const tripStartMidnight = new Date(tripStartDate);
+  tripStartMidnight.setHours(0, 0, 0, 0);
+  const tripEndMidnight = new Date(tripEndDate);
+  tripEndMidnight.setHours(0, 0, 0, 0);
   const msPerDay = 86400000;
   const dayCount = Math.max(
     1,
-    Math.floor((tripEnd.getTime() - tripStart.getTime()) / msPerDay) + 1
+    Math.round(
+      (tripEndMidnight.getTime() - tripStartMidnight.getTime()) / msPerDay
+    ) + 1
   );
 
   const unscheduled = spots
@@ -43,10 +60,9 @@ export function groupSpotsByDay(
   const groups: SpotDayGroup[] = [];
 
   for (let i = 0; i < dayCount; i++) {
-    const dayDate = new Date(tripStart);
-    dayDate.setHours(0, 0, 0, 0);
-    dayDate.setDate(dayDate.getDate() + i);
-    const key = dateKeyFromIso(dayDate.toISOString());
+    const dayDate = new Date(tripStartMidnight);
+    dayDate.setDate(tripStartMidnight.getDate() + i);
+    const key = dateKeyFromLocalDate(dayDate);
 
     const daySpots = spots
       .filter((s) => s.scheduledAt && dateKeyFromIso(s.scheduledAt) === key)
@@ -151,8 +167,10 @@ export function buildMapDayFilters(
       id: g.id,
       label: g.label,
       shortLabel: g.label.replace(/^Day (\d+).*/, "Day $1") || g.label,
-      trunkSpots: g.spots,
-      sproutSpots: sproutByDateKey.get(g.dateKey) ?? [],
+      trunkSpots: sortSpotsChronologically(g.spots),
+      sproutSpots: sortSpotsChronologically(
+        sproutByDateKey.get(g.dateKey) ?? []
+      ),
     });
   }
 
