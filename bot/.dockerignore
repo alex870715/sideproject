@@ -1,0 +1,12 @@
+*
+!requirements.txt
+!config.py
+!core/
+!core/**
+!strategies/
+!strategies/**
+!webui/
+!webui/**
+**/__pycache__/
+**/*.pyc
+**/.env*

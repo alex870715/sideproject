@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>小幣獵手 · Pump Bot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --accent: #3b82f6;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    .profile-card {
+      cursor: pointer;
+      transition: transform .15s, border-color .15s, box-shadow .15s;
+    }
+    .profile-card:hover { transform: translateY(-2px); border-color: #4b6a9b; }
+    .profile-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(59,130,246,.15);
+    }
+    .status-pill { border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; }
+    .status-scanning { background: rgba(59,130,246,.15); color: #93c5fd; }
+    .status-holding { background: rgba(34,197,94,.15); color: #86efac; }
+    .status-halted, .status-margin_blocked { background: rgba(239,68,68,.15); color: #fca5a5; }
+    .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; background:#243044; color:var(--muted); }
+    .btn {
+      border-radius: 10px; padding: 8px 16px; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--border); background: #243044; color: var(--text);
+      cursor: pointer; transition: background .12s;
+    }
+    .btn:hover { background: #2d3f58; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .pos-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: #141c28; }
+    .score-hot { color: #fbbf24; }
+    .score-warm { color: #86efac; }
+    .score-cool { color: var(--muted); }
+    .pattern-icon svg { width: 100%; height: 100%; display: block; }
+    .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      padding: 12px 16px; border-radius: 10px; font-size: 13px; max-width: 320px;
+      background: #1e293b; border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      animation: slideIn .25s ease;
+    }
+    .toast.ok { border-color: #166534; }
+    .toast.err { border-color: #991b1b; }
+    @keyframes slideIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }
+    details summary { cursor: pointer; list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    .scroll-y { overflow-y: auto; }
+    .scroll-y::-webkit-scrollbar { width: 5px; }
+    .scroll-y::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen pb-8">
+<div style="padding:12px 24px;background:#15332e;color:#b4f5d4"><a href="/lab" style="color:inherit;font-weight:600">↗ 開啟策略工作台 · 短中長線設定、操作建議與回測</a></div>
+
+
+  <!-- Header -->
+  <header class="border-b border-[var(--border)] px-4 md:px-8 py-4 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-bold tracking-tight">🎯 小幣獵手</h1>
+      <p class="text-sm text-[var(--muted)]" id="header-sub" data-i18n="header.sub">依「資金費率」找出空單過度擁擠的小幣，自動做多吃軋空反彈，自動停損停利，不用盯盤</p>
+    </div>
+    <div class="flex items-center gap-3 text-sm">
+      <span id="demo-badge" class="status-pill" style="background:rgba(245,158,11,.15);color:#fcd34d;">…</span>
+      <button class="btn btn-sm lang-btn" data-lang="zh-TW">繁中</button>
+      <button class="btn btn-sm lang-btn" data-lang="en">EN</button>
+      <span id="conn-dot" class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+      <span id="conn-text" class="text-[var(--muted)]">未連線</span>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 md:px-8 py-6 space-y-6">
+
+    <!-- Hero: 帳戶 + 狀態 -->
+    <section class="card p-6 md:p-8">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div class="text-sm text-[var(--muted)] mb-1" data-i18n="hero.equity">目前總資產</div>
+          <div class="text-4xl md:text-5xl font-bold mono tracking-tight" id="hero-eq">—</div>
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <span class="text-[var(--muted)]" data-i18n="hero.today">今日</span>
+            <span id="hero-day" class="text-lg font-bold mono">—</span>
+            <span id="hero-day-pct" class="font-semibold">—</span>
+          </div>
+          <div class="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]">
+            <span><span data-i18n="hero.ret">總報酬</span> <span id="hero-ret" class="font-semibold">—</span></span>
+            <span>·</span>
+            <span><span data-i18n="hero.rpnl">已實現</span> <span id="hero-rpnl" class="mono">—</span></span>
+            <span>·</span>
+            <span><span data-i18n="hero.fee">手續費</span> <span id="hero-fee" class="mono">—</span></span>
+          </div>
+        </div>
+        <div class="text-right">
+          <div id="status-pill" class="status-pill status-scanning inline-block">掃描中</div>
+          <div class="text-xs text-[var(--muted)] mt-2" id="status-detail">—</div>
+          <div class="text-xs text-[var(--muted)] mt-1" id="meta-line">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 持倉 -->
+    <section class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold flex items-center gap-2">
+          <span data-i18n="sec.positions">我的持倉</span>
+          <span id="pos-badge" class="tag">0</span>
+        </h2>
+        <button id="btn-close-all" class="btn btn-danger btn-sm" disabled data-i18n="pos.close_all">全部平倉</button>
+      </div>
+      <div id="positions-wrap" class="space-y-3">
+        <div class="text-center text-[var(--muted)] py-8 text-sm" id="pos-empty" data-i18n="pos.empty">
+          目前沒有持倉 · Bot 正在掃描符合型態的小幣
+        </div>
+      </div>
+    </section>
+
+    <!-- 交易方案 -->
+    <section>
+      <h2 class="text-sm font-semibold text-[var(--muted)] uppercase tracking-wider mb-3" data-i18n="sec.profile">
+        選擇交易方案
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="profile-grid"></div>
+      <p class="text-xs text-[var(--muted)] mt-3" data-i18n="profile.hint">
+        一鍵套用風險 + 策略。預設「資金費率」是回測中唯一扣費後正期望的方案；不要同時開多個策略。
+      </p>
+    </section>
+
+    <!-- 目前方案摘要 -->
+    <section class="card p-5">
+      <div class="flex flex-wrap gap-5 items-start">
+        <div class="w-20 h-12 rounded-lg overflow-hidden border border-[var(--border)] bg-[#0f1419] pattern-icon shrink-0" id="plan-icon"></div>
+        <div class="flex-1 min-w-[200px]">
+          <div class="text-xs text-[var(--muted)]" data-i18n="plan.current">目前方案</div>
+          <div class="text-lg font-bold" id="plan-strategy">—</div>
+          <div class="text-sm text-[var(--muted)]" id="plan-tagline">—</div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm flex-1">
+          <div title="逐倉：每筆交易獨立計算，就算這筆爆倉，最壞只賠這一筆的本金，不會拖累整個帳戶。">
+            <div class="text-[var(--muted)] text-xs" data-i18n="plan.protect">保護方式</div>
+            <div class="font-semibold" id="plan-lev">—</div>
+          </div>
+          <div title="目標獲利相對於可能虧損的倍數。1 : 2.5 代表「願意冒虧 1 元的風險、去賺 2.5 元」。">
+            <div class="text-[var(--muted)] text-xs" data-i18n="plan.rr">賺賠比</div>
+            <div class="font-semibold" id="plan-rr">—</div>
+          </div>
+          <div title="每筆交易投入多少本金當保證金。比例越小、單筆風險越低。">
+            <div class="text-[var(--muted)] text-xs" data-i18n="plan.size">每筆投入</div>
+            <div class="font-semibold" id="plan-size">—</div>
+          </div>
+          <div title="今天已經開了幾筆、還能再開幾筆。達上限後自動停手，避免過度交易。">
+            <div class="text-[var(--muted)] text-xs" data-i18n="plan.opens">今日可開</div>
+            <div class="font-semibold" id="plan-opens">—</div>
+          </div>
+        </div>
+      </div>
+      <p class="text-xs text-[var(--muted)] mt-4 leading-relaxed" id="plan-howto" data-i18n="plan.howto">
+        運作方式：永續合約每 8 小時結算一次「資金費率」。當費率被拉到極端負，代表空單過度擁擠、空方在付高額成本 → 機器人自動做多、吃這段軋空反彈，抱約一個結算週期後了結。依市場結構（不是 K 線），是回測中唯一扣費後正期望的方法。勝率約 36% 但贏的時候贏很大。
+      </p>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <!-- 觀察名單 -->
+      <section class="card p-5 lg:col-span-3">
+        <h2 class="font-bold mb-1" data-i18n="sec.watchlist">觀察名單</h2>
+        <p class="text-xs text-[var(--muted)] mb-4" data-i18n="watch.hint">依起漲強度排序 · 達門檻且型態確認才會開倉</p>
+        <div class="scroll-y max-h-80">
+          <table class="w-full text-sm">
+            <thead class="text-[var(--muted)] text-left border-b border-[var(--border)]">
+              <tr>
+                <th class="pb-2 font-medium w-8">#</th>
+                <th class="pb-2 font-medium" data-i18n="watch.symbol">幣種</th>
+                <th class="pb-2 font-medium text-right" data-i18n="watch.heat">熱度</th>
+                <th class="pb-2 font-medium text-right" data-i18n="watch.price">價格</th>
+              </tr>
+            </thead>
+            <tbody id="watch-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 動態 -->
+      <section class="card p-5 lg:col-span-2">
+        <h2 class="font-bold mb-4" data-i18n="sec.activity">最近動態</h2>
+        <div class="scroll-y max-h-80 space-y-2 text-sm" id="activity-list"></div>
+      </section>
+    </div>
+
+    <!-- 進階 -->
+    <details class="card p-5">
+      <summary class="font-semibold text-[var(--muted)]" data-i18n="sec.advanced">▸ 進階設定（一般使用者可略過）</summary>
+      <div class="mt-4 space-y-4 text-sm">
+        <p class="text-[var(--muted)]" data-i18n="adv.warn">不建議同時啟用多個策略，容易過度交易。以下供進階使用者調整。</p>
+        <div id="adv-strategies" class="space-y-2"></div>
+        <div id="adv-risk" class="space-y-2"></div>
+      </div>
+    </details>
+  </main>
+
+  <div class="toast-wrap" id="toasts"></div>
+
+  <script>
+    let lang = localStorage.getItem('lang') || 'zh-TW';
+    let lastState = null;
+    let lastProfileId = null;
+    let profileSwitching = false;
+
+    const I18N = {
+      'zh-TW': {
+        'hero.equity': '目前總資產',
+        'header.sub': '依「資金費率」找出空單過度擁擠的小幣，自動做多吃軋空反彈，自動停損停利，不用盯盤',
+        'header.demo.demo': '🧪 模擬交易（非真錢）',
+        'header.demo.real': '⚠️ 真實交易（真錢）',
+        'hero.today': '今日',
+        'hero.ret': '總報酬',
+        'hero.rpnl': '已實現',
+        'hero.fee': '手續費',
+        'sec.profile': '選擇交易方案',
+        'profile.hint': '一鍵套用風險 + 策略。預設「資金費率」是回測中唯一扣費後正期望的方案；不要同時開多個策略。',
+        'plan.current': '目前方案',
+        'plan.protect': '保護方式',
+        'plan.rr': '賺賠比',
+        'plan.size': '每筆投入',
+        'plan.opens': '今日可開',
+        'plan.equity': '本金',
+        'plan.unit': '筆',
+        'plan.howto': '運作方式：永續合約每 8 小時結算一次「資金費率」。當費率被拉到極端負，代表空單過度擁擠、空方在付高額成本 → 機器人自動做多、吃這段軋空反彈，抱約一個結算週期後了結。依市場結構（不是 K 線），是回測中唯一扣費後正期望的方法。勝率約 36% 但贏的時候贏很大。',
+        'sec.positions': '我的持倉',
+        'pos.close_all': '全部平倉',
+        'pos.empty': '目前沒有持倉 · 機器人正在掃描爆量起漲的小幣',
+        'pos.close': '手動賣出',
+        'pos.long': '做多',
+        'pos.short': '做空',
+        'pos.entry': '進場',
+        'pos.stop': '停損',
+        'pos.target': '目標',
+        'pos.liq': '爆倉價',
+        'pos.runner': '續抱中',
+        'pos.dist_stop': '離停損還有',
+        'pos.dist_liq': '離爆倉還有',
+        'profile.confirm': '確定切換交易方案？這會改變機器人接下來的下單行為。',
+        'sec.watchlist': '觀察名單',
+        'watch.hint': '市場熱度排序，僅供參考 · 實際進場看「爆量急跌後反彈」訊號',
+        'watch.symbol': '幣種',
+        'watch.heat': '熱度',
+        'watch.price': '價格',
+        'sec.activity': '最近動態',
+        'sec.advanced': '▸ 進階設定（一般使用者可略過）',
+        'adv.warn': '不建議同時啟用多個策略，容易過度交易。以下供進階使用者調整。',
+        'conn.on': '已連線',
+        'conn.off': '未連線',
+        'heat.hot': '強',
+        'heat.warm': '中',
+        'heat.cool': '弱',
+        'profile.ok': '已切換方案',
+        'profile.fail': '切換失敗',
+        'close.ok': '平倉成功',
+        'close.fail': '平倉失敗',
+        'closeall.confirm': '確定平掉所有持倉？',
+        'close.confirm': '確定平倉',
+        'isolated': '逐倉',
+        'left': '剩',
+      },
+      'en': {
+        'hero.equity': 'Total assets',
+        'header.sub': 'Uses funding rate to spot over-crowded shorts, then longs the short-squeeze bounce — auto stop/profit, no screen-watching',
+        'header.demo.demo': '🧪 Demo (not real money)',
+        'header.demo.real': '⚠️ LIVE (real money)',
+        'hero.today': 'Today',
+        'hero.ret': 'Total return',
+        'hero.rpnl': 'Realized',
+        'hero.fee': 'Fees',
+        'sec.profile': 'Trading profile',
+        'profile.hint': 'One-click risk + strategy. Default "Funding" is the only profile with positive post-fee edge in backtest; avoid running multiple strategies.',
+        'plan.current': 'Current plan',
+        'plan.protect': 'Protection',
+        'plan.rr': 'Reward : risk',
+        'plan.size': 'Per trade',
+        'plan.opens': 'Trades today',
+        'plan.equity': 'equity',
+        'plan.unit': '',
+        'plan.howto': 'How it works: perps settle a funding rate every 8h. When it turns extremely negative, shorts are over-crowded and paying heavily → the bot longs the short-squeeze bounce and exits after ~one funding cycle. Based on market structure, not candles — the only approach with positive post-fee edge in backtest. ~36% win rate, but winners are large.',
+        'sec.positions': 'Positions',
+        'pos.close_all': 'Close all',
+        'pos.empty': 'No positions · scanning for volume-surge breakouts',
+        'pos.close': 'Sell now',
+        'pos.long': 'Long',
+        'pos.short': 'Short',
+        'pos.entry': 'Entry',
+        'pos.stop': 'Stop',
+        'pos.target': 'Target',
+        'pos.liq': 'Liq. price',
+        'pos.runner': 'Running',
+        'pos.dist_stop': 'to stop',
+        'pos.dist_liq': 'to liquidation',
+        'profile.confirm': 'Switch trading profile? This changes how the bot trades going forward.',
+        'sec.watchlist': 'Watchlist',
+        'watch.hint': 'Ranked by market heat (reference only) · entries trigger on volume-drop bounces',
+        'watch.symbol': 'Symbol',
+        'watch.heat': 'Heat',
+        'watch.price': 'Price',
+        'sec.activity': 'Activity',
+        'sec.advanced': '▸ Advanced (optional)',
+        'adv.warn': 'Multiple strategies cause overtrading. For advanced users only.',
+        'conn.on': 'Connected',
+        'conn.off': 'Disconnected',
+        'heat.hot': 'Hot',
+        'heat.warm': 'Warm',
+        'heat.cool': 'Cool',
+        'profile.ok': 'Profile updated',
+        'profile.fail': 'Switch failed',
+        'close.ok': 'Closed',
+        'close.fail': 'Close failed',
+        'closeall.confirm': 'Close ALL positions?',
+        'close.confirm': 'Close position',
+        'isolated': 'Isolated',
+        'left': 'left',
+      },
+    };
+
+    function t(k) { return (I18N[lang] && I18N[lang][k]) || k; }
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.getAttribute('data-i18n'));
+      });
+      document.querySelectorAll('.lang-btn').forEach(b => {
+        b.classList.toggle('btn-primary', b.dataset.lang === lang);
+      });
+    }
+
+    function fmt(n, d = 2) {
+      if (n == null || isNaN(n)) return '—';
+      return Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+    }
+
+    function fmtPct(n) {
+      if (n == null || isNaN(n)) return '—';
+      const s = (n >= 0 ? '+' : '') + (n * 100).toFixed(2) + '%';
+      return s;
+    }
+
+    function pnlClass(n) {
+      if (n > 0) return 'text-green-400';
+      if (n < 0) return 'text-red-400';
+      return 'text-[var(--muted)]';
+    }
+
+    function toast(msg, ok = true) {
+      const wrap = document.getElementById('toasts');
+      const el = document.createElement('div');
+      el.className = 'toast ' + (ok ? 'ok' : 'err');
+      el.textContent = msg;
+      wrap.appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+
+    function heatLabel(score) {
+      if (score >= 50) return { text: t('heat.hot'), cls: 'score-hot' };
+      if (score >= 30) return { text: t('heat.warm'), cls: 'score-warm' };
+      return { text: t('heat.cool'), cls: 'score-cool' };
+    }
+
+    function symShort(s) {
+      return (s || '').replace('-USDT-SWAP', '').replace('-SWAP', '');
+    }
+
+    async function apiPost(url, body) {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      return data;
+    }
+
+    async function onSelectProfile(id) {
+      if (profileSwitching || lastProfileId === id) return;
+      if (!confirm(t('profile.confirm'))) return;
+      profileSwitching = true;
+      try {
+        await apiPost('/api/pump/profile', { id });
+        toast(t('profile.ok'));
+      } catch (e) {
+        toast(t('profile.fail') + ': ' + e.message, false);
+      } finally {
+        profileSwitching = false;
+      }
+    }
+
+    function renderProfiles(ui) {
+      const grid = document.getElementById('profile-grid');
+      const active = ui.profile_id || 'steady';
+      lastProfileId = active;
+      const sig = JSON.stringify(ui.profiles) + active;
+      if (grid.dataset.sig === sig) return;
+      grid.dataset.sig = sig;
+      grid.innerHTML = (ui.profiles || []).map(p => {
+        const name = lang === 'zh-TW' ? p.name_zh : p.name_en;
+        const desc = lang === 'zh-TW' ? p.desc_zh : p.desc_en;
+        const tags = (lang === 'zh-TW' ? p.tags_zh : p.tags_en) || [];
+        const isActive = p.id === active;
+        return `
+          <div class="card profile-card p-4 ${isActive ? 'active' : ''}" data-profile="${p.id}">
+            <div class="text-2xl mb-2">${p.icon || '◆'}</div>
+            <div class="font-bold text-lg">${name}${p.recommended ? ' <span class="text-xs text-blue-400">★</span>' : ''}</div>
+            <div class="text-sm text-[var(--muted)] mt-1 leading-relaxed">${desc}</div>
+            <div class="flex flex-wrap gap-1 mt-3">${tags.map(x => `<span class="tag">${x}</span>`).join('')}</div>
+          </div>`;
+      }).join('');
+      grid.querySelectorAll('[data-profile]').forEach(el => {
+        el.onclick = () => onSelectProfile(el.dataset.profile);
+      });
+    }
+
+    function renderPlan(state) {
+      const ui = state.ui || {};
+      const plan = ui.plan || {};
+      const strats = state.strategies?.strategies || [];
+      const active = strats.find(s => s.is_active && s.tier === 'core') || strats.find(s => s.is_active);
+      const iconEl = document.getElementById('plan-icon');
+      if (active?.pattern_icon) iconEl.innerHTML = active.pattern_icon;
+      else iconEl.innerHTML = '';
+
+      const sName = lang === 'zh-TW' ? plan.strategy_name_zh : plan.strategy_name_en;
+      const sTag = lang === 'zh-TW' ? plan.strategy_tagline_zh : plan.strategy_tagline_en;
+      document.getElementById('plan-strategy').textContent = sName || '—';
+      document.getElementById('plan-tagline').textContent = sTag || plan.risk_mode_name || '—';
+
+      const td = plan.td_mode === 'isolated' ? t('isolated') : plan.td_mode;
+      document.getElementById('plan-lev').textContent = `${td} ${plan.leverage || '—'}×`;
+      const rr = plan.take_profit_r ? `1 : ${plan.take_profit_r}` : '—';
+      document.getElementById('plan-rr').textContent = rr;
+      const fracPct = plan.position_fraction != null
+        ? `${(plan.position_fraction * 100).toFixed(1)}% ${t('plan.equity')}`
+        : '—';
+      document.getElementById('plan-size').textContent = fracPct;
+
+      let opens = '—';
+      if (plan.max_opens_per_day > 0) {
+        const left = plan.opens_left != null ? plan.opens_left : (plan.max_opens_per_day - plan.opens_today);
+        opens = `${plan.opens_today || 0} / ${plan.max_opens_per_day} ${t('plan.unit')}（${t('left')} ${left}）`;
+      } else {
+        opens = `${plan.opens_today || 0} ${t('plan.unit')}`;
+      }
+      document.getElementById('plan-opens').textContent = opens;
+    }
+
+    function renderHero(state) {
+      const acc = state.account || {};
+      const eq = parseFloat(acc.equity ?? acc.balance ?? 0);
+      const ret = parseFloat(acc.return_pct ?? 0);
+      const rpnl = parseFloat(acc.realized_pnl ?? 0);
+      const fee = parseFloat(acc.total_fee_paid ?? 0);
+
+      document.getElementById('hero-eq').textContent = fmt(eq) + ' USDT';
+      const retEl = document.getElementById('hero-ret');
+      retEl.textContent = fmtPct(ret);
+      retEl.className = 'font-semibold ' + pnlClass(ret);
+      document.getElementById('hero-rpnl').textContent = (rpnl >= 0 ? '+' : '') + fmt(rpnl);
+      document.getElementById('hero-fee').textContent = fmt(fee);
+
+      const isDemo = acc.demo === true; // 欄位缺失/未知一律視為真錢，寧可多警告不可漏警告
+      const demoBadge = document.getElementById('demo-badge');
+      demoBadge.textContent = t(isDemo ? 'header.demo.demo' : 'header.demo.real');
+      demoBadge.style.background = isDemo ? 'rgba(245,158,11,.15)' : 'rgba(239,68,68,.2)';
+      demoBadge.style.color = isDemo ? '#fcd34d' : '#fca5a5';
+
+      const ui = state.ui || {};
+      // 今日損益（一般人最在意的一眼資訊）
+      const dayPnl = parseFloat(ui.day_pnl ?? 0);
+      const dayPct = parseFloat(ui.day_pnl_pct ?? 0);
+      const dayEl = document.getElementById('hero-day');
+      dayEl.textContent = (dayPnl >= 0 ? '+' : '') + fmt(dayPnl) + ' USDT';
+      dayEl.className = 'text-lg font-bold mono ' + pnlClass(dayPnl);
+      const dayPctEl = document.getElementById('hero-day-pct');
+      dayPctEl.textContent = '(' + fmtPct(dayPct) + ')';
+      dayPctEl.className = 'font-semibold ' + pnlClass(dayPnl);
+
+      const st = ui.status || {};
+      const pill = document.getElementById('status-pill');
+      const code = st.code || 'scanning';
+      pill.className = 'status-pill status-' + code;
+      pill.textContent = lang === 'zh-TW' ? st.message_zh : st.message_en;
+
+      const plan = ui.plan || {};
+      document.getElementById('status-detail').textContent =
+        `${state.universe_count || 0} 幣掃描 · ${plan.max_concurrent || 1} 倉上限 · 保證金 ${fmt(ui.margin_available, 0)} USDT`;
+      document.getElementById('meta-line').textContent =
+        `OKX Demo · ${state.active_strategies?.join(', ') || state.active_strategy || '—'}`;
+    }
+
+    function renderPositions(state) {
+      const positions = state.positions || [];
+      const wrap = document.getElementById('positions-wrap');
+      const empty = document.getElementById('pos-empty');
+      const badge = document.getElementById('pos-badge');
+      const btnAll = document.getElementById('btn-close-all');
+
+      badge.textContent = positions.length;
+      btnAll.disabled = positions.length === 0;
+
+      if (!positions.length) {
+        empty.classList.remove('hidden');
+        wrap.querySelectorAll('.pos-card').forEach(e => e.remove());
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const html = positions.map(p => {
+        const ret = (p.return_pct || 0) * 100;
+        const upnl = parseFloat(p.unrealized_pnl || 0);
+        const entry = parseFloat(p.avg_entry_price);
+        const last = parseFloat(p.last_close);
+        const stop = p.initial_stop ? parseFloat(p.initial_stop) : null;
+        const tp = p.take_profit ? parseFloat(p.take_profit) : null;
+        const liq = p.liq_price ? parseFloat(p.liq_price) : null;
+        const isLong = (p.side || '').toUpperCase() === 'LONG';
+        // 白話化：停損 / 目標換算成「相對進場價的 %」，並算「離停損還有多遠」
+        const pct = (from, to) => (from > 0 ? ((to - from) / from) * 100 : null);
+        const stopPct = stop != null ? pct(entry, stop) : null;     // 多單為負
+        const tpPct = tp != null ? pct(entry, tp) : null;            // 多單為正
+        let distToStop = null;
+        if (stop != null && last > 0) {
+          distToStop = isLong ? ((last - stop) / last) * 100 : ((stop - last) / last) * 100;
+        }
+        const stopTxt = stopPct != null ? `${stopPct >= 0 ? '+' : ''}${stopPct.toFixed(1)}%` : '—';
+        const tpTxt = tp != null ? `${tpPct >= 0 ? '+' : ''}${tpPct.toFixed(1)}%` : t('pos.runner');
+        const distTxt = distToStop != null
+          ? `${t('pos.dist_stop')} ${distToStop.toFixed(1)}%`
+          : '';
+        let distToLiq = null;
+        if (liq != null && liq > 0 && last > 0) {
+          distToLiq = isLong ? ((last - liq) / last) * 100 : ((liq - last) / last) * 100;
+        }
+        return `
+          <div class="pos-card" data-sym="${p.symbol}">
+            <div class="flex flex-wrap justify-between gap-2 mb-2">
+              <div>
+                <span class="font-bold text-lg">${symShort(p.symbol)}</span>
+                <span class="tag ml-2">${isLong ? t('pos.long') : t('pos.short')}</span>
+                <span class="tag ml-1">${p.leverage}×</span>
+              </div>
+              <div class="text-right">
+                <div class="${pnlClass(upnl)} font-bold mono">${upnl >= 0 ? '+' : ''}${fmt(upnl)} USDT</div>
+                <div class="text-xs ${pnlClass(ret)}">${ret >= 0 ? '+' : ''}${ret.toFixed(2)}%</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-4 gap-2 text-xs text-[var(--muted)] mb-2">
+              <div>${t('pos.entry')} <span class="text-[var(--text)] mono">${fmt(entry, 4)}</span></div>
+              <div title="跌到這個幅度會自動賣出，控制虧損">${t('pos.stop')} <span class="text-red-400 font-semibold">${stopTxt}</span></div>
+              <div title="漲到這個幅度先鎖利、之後讓獲利續抱">${t('pos.target')} <span class="text-green-400 font-semibold">${tpTxt}</span></div>
+              <div title="到這個價格交易所會強制平倉，跟你自己設的停損是兩回事">${t('pos.liq')} <span class="text-amber-400 font-semibold">${liq ? fmt(liq, 4) : '—'}</span></div>
+            </div>
+            ${distTxt ? `<div class="text-xs text-[var(--muted)] mb-1">🛡 ${distTxt}</div>` : ''}
+            ${distToLiq != null ? `<div class="text-xs text-amber-400/80 mb-3">⚠ ${t('pos.dist_liq')} ${distToLiq.toFixed(1)}%</div>` : '<div class="mb-3"></div>'}
+            <button class="btn btn-sm btn-danger btn-close-one" data-sym="${p.symbol}">${t('pos.close')}</button>
+          </div>`;
+      }).join('');
+
+      wrap.querySelectorAll('.pos-card').forEach(e => e.remove());
+      wrap.insertAdjacentHTML('beforeend', html);
+
+      wrap.querySelectorAll('.btn-close-one').forEach(btn => {
+        btn.onclick = async () => {
+          if (!confirm(t('close.confirm') + ' ' + symShort(btn.dataset.sym) + '?')) return;
+          try {
+            await apiPost('/api/pump/positions/' + encodeURIComponent(btn.dataset.sym) + '/close');
+            toast(t('close.ok'));
+          } catch (e) {
+            toast(t('close.fail'), false);
+          }
+        };
+      });
+    }
+
+    function renderWatchlist(state) {
+      const body = document.getElementById('watch-body');
+      const cands = (state.candidates || []).slice(0, 12);
+      if (!cands.length) {
+        body.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-[var(--muted)]">…</td></tr>`;
+        return;
+      }
+      body.innerHTML = cands.map((c, i) => {
+        const h = heatLabel(c.score || 0);
+        return `<tr class="border-b border-[var(--border)]/50">
+          <td class="py-2.5 text-[var(--muted)]">${i + 1}</td>
+          <td class="py-2.5 font-medium">${symShort(c.symbol)}</td>
+          <td class="py-2.5 text-right ${h.cls}">${h.text} <span class="text-[var(--muted)] text-xs">${Math.round(c.score || 0)}</span></td>
+          <td class="py-2.5 text-right mono">${fmt(parseFloat(c.last_close), 4)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    let lastEventSig = '';
+    function renderActivity(events) {
+      const list = document.getElementById('activity-list');
+      const filtered = (events || []).filter(e => {
+        const lv = e.level;
+        if (lv === 'TRADE' || lv === 'PANIC' || lv === 'ERROR') return true;
+        if (lv === 'REGIME') return true;
+        if (lv === 'INFO' && /skip open|方案|策略|Universe|熔斷/i.test(e.msg)) return true;
+        return false;
+      }).slice(-30).reverse();
+
+      const sig = filtered.map(e => e.t + e.msg).join('|');
+      if (sig === lastEventSig) return;
+      lastEventSig = sig;
+
+      if (!filtered.length) {
+        list.innerHTML = '<div class="text-[var(--muted)]">—</div>';
+        return;
+      }
+      list.innerHTML = filtered.map(e => {
+        const time = (e.t || '').slice(11, 19);
+        let color = 'text-[var(--muted)]';
+        if (e.level === 'TRADE') color = 'text-blue-400';
+        if (e.level === 'PANIC' || e.level === 'ERROR') color = 'text-red-400';
+        if (e.level === 'REGIME') color = 'text-amber-400';
+        return `<div class="border-b border-[var(--border)]/40 pb-2">
+          <span class="text-xs text-[var(--muted)] mono">${time}</span>
+          <span class="${color} ml-2">${e.msg}</span>
+        </div>`;
+      }).join('');
+    }
+
+    let advSig = '';
+    function renderAdvanced(state) {
+      const sig = JSON.stringify(state.strategies?.active_list) + state.active_risk_mode;
+      if (sig === advSig) return;
+      advSig = sig;
+
+      const strats = state.strategies?.strategies || [];
+      document.getElementById('adv-strategies').innerHTML = strats.map(s => {
+        const label = lang === 'zh-TW' ? s.name_zh : s.name_en;
+        const on = s.is_active;
+        return `<div class="flex items-center justify-between p-2 rounded-lg bg-[#141c28] border border-[var(--border)]">
+          <span>${label || s.name}${s.recommended ? ' ★' : ''}</span>
+          <button class="btn btn-sm adv-toggle-strat" data-name="${s.name}" data-active="${!on}">
+            ${on ? '停用' : '啟用'}
+          </button>
+        </div>`;
+      }).join('');
+
+      document.querySelectorAll('.adv-toggle-strat').forEach(btn => {
+        btn.onclick = async () => {
+          const name = btn.dataset.name;
+          const active = btn.dataset.active === 'true';
+          try {
+            await apiPost('/api/pump/strategies/' + encodeURIComponent(name) + '/active', { active });
+            toast(active ? '已啟用 ' + name : '已停用 ' + name);
+          } catch (e) {
+            toast(e.message, false);
+          }
+        };
+      });
+
+      const modes = state.risk_modes?.modes || [];
+      document.getElementById('adv-risk').innerHTML = modes.map(m => {
+        const on = m.key === state.active_risk_mode;
+        return `<div class="flex items-center justify-between p-2 rounded-lg bg-[#141c28] border border-[var(--border)]">
+          <span>${m.name}</span>
+          <button class="btn btn-sm adv-set-rm ${on ? 'btn-primary' : ''}" data-key="${m.key}" ${on ? 'disabled' : ''}>
+            ${on ? '使用中' : '套用'}
+          </button>
+        </div>`;
+      }).join('');
+
+      document.querySelectorAll('.adv-set-rm').forEach(btn => {
+        btn.onclick = async () => {
+          try {
+            await apiPost('/api/pump/risk-mode', { key: btn.dataset.key });
+            toast('已切換風險模式');
+          } catch (e) {
+            toast(e.message, false);
+          }
+        };
+      });
+    }
+
+    function render(payload) {
+      const state = payload.state || payload;
+      lastState = state;
+      renderHero(state);
+      if (state.ui) renderProfiles(state.ui);
+      renderPlan(state);
+      renderPositions(state);
+      renderWatchlist(state);
+      renderActivity(payload.events || []);
+      renderAdvanced(state);
+    }
+
+    document.getElementById('btn-close-all').onclick = async () => {
+      if (!confirm(t('closeall.confirm'))) return;
+      try {
+        await apiPost('/api/pump/positions/close-all');
+        toast(t('close.ok'));
+      } catch (e) {
+        toast(t('close.fail'), false);
+      }
+    };
+
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.onclick = () => {
+        lang = btn.dataset.lang;
+        localStorage.setItem('lang', lang);
+        applyI18n();
+        if (lastState) render({ state: lastState, events: [] });
+      };
+    });
+
+    function setConn(on) {
+      document.getElementById('conn-dot').className = 'w-2.5 h-2.5 rounded-full ' + (on ? 'bg-green-500' : 'bg-red-500');
+      document.getElementById('conn-text').textContent = on ? t('conn.on') : t('conn.off');
+    }
+
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(proto + '//' + location.host + '/ws');
+      ws.onopen = () => setConn(true);
+      ws.onclose = () => { setConn(false); setTimeout(connect, 3000); };
+      ws.onmessage = (ev) => {
+        try { render(JSON.parse(ev.data)); } catch (_) {}
+      };
+    }
+
+    applyI18n();
+    connect();
+  </script>
+</body>
+</html>

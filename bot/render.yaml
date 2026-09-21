@@ -1,0 +1,37 @@
+# Separate Blueprint from the monorepo's legacy gateway.
+# Paid always-on service + persistent disk; review current Render prices before applying.
+services:
+  - type: web
+    name: quant-pilot
+    runtime: docker
+    rootDir: bot
+    plan: starter
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    numInstances: 1
+    healthCheckPath: /healthz
+    autoDeployTrigger: off
+    disk:
+      name: quant-pilot-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: BOT_CLOUD
+        value: "true"
+      - key: BOT_DATA_DIR
+        value: /var/data
+      - key: BOT_PUBLIC_ORIGIN
+        sync: false
+      - key: BOT_ADMIN_USER
+        value: alex
+      - key: BOT_ADMIN_PASSWORD
+        generateValue: true
+      - key: OKX_DEMO
+        value: "true"
+      - key: OKX_API_KEY
+        sync: false
+      - key: OKX_API_SECRET
+        sync: false
+      - key: OKX_PASSPHRASE
+        sync: false

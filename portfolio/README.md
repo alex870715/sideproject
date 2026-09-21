@@ -1,3 +1,13 @@
+# Portfolio refresh / Quant Pilot
+
+The public Pages site serves only files in this directory. It includes a read-only historical replay at `quant-pilot.html`; the data file is allowlisted research output, not an OKX account snapshot.
+
+Regenerate explicitly with `bot/scripts/backtest_portfolio.py --export ../portfolio/data/quant-pilot.json` from `bot/`. See `bot/CLOUD.md` for the separate authenticated, persistent trading service. Set `owner-config.js` only after verifying the private deployment.
+
+Preview with `python3 -m http.server 8820 --bind 127.0.0.1 --directory portfolio` from the repository root.
+
+---
+
 # Portfolio 一鍵部署
 
 用 **Docker Compose** 在同一個網址下跑五個服務：首頁 + 四個可操作的 app。

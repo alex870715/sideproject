@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Trading Bot — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    body { background:#0d1117; color:#c9d1d9; font-family:'SF Mono','Menlo','Consolas',monospace; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:8px; }
+    .card-active { border-color:#3fb950; box-shadow:0 0 0 1px #3fb95044; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; letter-spacing:.5px; }
+    .badge-trending_up   { background:#1f6f3a; color:#fff; }
+    .badge-trending_down { background:#6f1f1f; color:#fff; }
+    .badge-ranging       { background:#6f6f1f; color:#fff; }
+    .badge-low_volatility{ background:#1f4f6f; color:#fff; }
+    .badge-high_volatility { background:#ff4444; color:#fff; animation:pulse 1s infinite; }
+    .badge-breakout      { background:#6f1f6f; color:#fff; }
+    .badge-unknown       { background:#555; color:#fff; }
+    @keyframes pulse { 50% { opacity:.4; } }
+    .lvl-INFO   { color:#8b949e; }
+    .lvl-TRADE  { color:#58a6ff; }
+    .lvl-REGIME { color:#d29922; }
+    .lvl-PANIC  { color:#ff7b72; font-weight:700; }
+    .lvl-ERROR  { color:#ff7b72; }
+    .row > div { padding:1px 0; }
+    .row .k { color:#8b949e; }
+    .row .v { text-align:right; }
+    .scroll-y { overflow-y:auto; }
+    .scroll-y::-webkit-scrollbar { width:6px; }
+    .scroll-y::-webkit-scrollbar-thumb { background:#30363d; border-radius:3px; }
+
+    .input { background:#0d1117; border:1px solid #30363d; color:#c9d1d9; border-radius:4px; padding:2px 6px; font-size:12px; width:90px; }
+    .input:focus { outline:none; border-color:#58a6ff; }
+    .btn { padding:4px 10px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer; transition:background .1s; border:1px solid transparent; }
+    .btn-primary  { background:#238636; color:#fff; }
+    .btn-primary:hover  { background:#2ea043; }
+    .btn-secondary{ background:#21262d; color:#c9d1d9; border-color:#30363d; }
+    .btn-secondary:hover{ background:#30363d; }
+    .btn-active { background:#58a6ff; color:#0d1117; }
+    .btn:disabled { opacity:.4; cursor:not-allowed; }
+    .lang-btn { padding:1px 8px; font-size:11px; border-radius:3px; cursor:pointer; background:#21262d; color:#8b949e; border:1px solid #30363d; }
+    .lang-btn.active { background:#58a6ff; color:#0d1117; border-color:#58a6ff; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <header class="px-6 py-3 border-b border-gray-700 flex items-center justify-between">
+    <div>
+      <h1 class="text-lg font-bold text-white"><span data-i18n="header.title">Crypto Trading Bot</span> <span class="text-gray-500 text-xs">— <span data-i18n="header.simulated">simulated</span></span></h1>
+      <div class="text-xs text-gray-500" id="header-meta"><span data-i18n="conn.connecting">connecting...</span></div>
+    </div>
+    <div class="flex items-center gap-3 text-xs">
+      <div class="flex items-center gap-1">
+        <button class="lang-btn" data-lang="zh-TW">繁中</button>
+        <button class="lang-btn" data-lang="en">EN</button>
+      </div>
+      <span id="conn-dot" class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+      <span id="conn-text" class="text-gray-400" data-i18n="conn.disconnected">disconnected</span>
+    </div>
+  </header>
+
+  <main class="grid grid-cols-12 gap-4 p-4">
+
+    <section class="col-span-12 md:col-span-4 card p-4">
+      <h2 class="text-sm font-bold text-gray-200 mb-3 flex items-center justify-between">
+        <span data-i18n="panel.market">Market State</span>
+        <span id="mkt-regime" class="badge badge-unknown">UNKNOWN</span>
+      </h2>
+      <div class="row text-xs grid grid-cols-2 gap-x-3 mb-3">
+        <div class="k" data-i18n="mkt.symbol">Symbol</div><div class="v" id="mkt-symbol">—</div>
+        <div class="k" data-i18n="mkt.price">Last price</div><div class="v font-bold text-base text-white" id="mkt-price">—</div>
+        <div class="k" data-i18n="mkt.strategy">Active strategy</div><div class="v text-cyan-300 font-bold" id="mkt-strategy">—</div>
+      </div>
+      <div class="text-xs italic text-gray-500 mb-3" id="mkt-note">—</div>
+      <div class="row text-xs grid grid-cols-2 gap-x-3">
+        <div class="k">ADX</div><div class="v" id="ind-adx">—</div>
+        <div class="k">ATR</div><div class="v" id="ind-atr">—</div>
+        <div class="k" data-i18n="ind.atrpct">ATR percentile</div><div class="v" id="ind-atrpct">—</div>
+        <div class="k">RSI</div><div class="v" id="ind-rsi">—</div>
+      </div>
+    </section>
+
+    <section class="col-span-12 md:col-span-4 card p-4">
+      <h2 class="text-sm font-bold text-gray-200 mb-3" data-i18n="panel.account">Account</h2>
+      <div class="row text-xs grid grid-cols-2 gap-x-3">
+        <div class="k" data-i18n="acc.init">Initial balance</div><div class="v" id="acc-init">—</div>
+        <div class="k" data-i18n="acc.bal">Balance</div><div class="v" id="acc-bal">—</div>
+        <div class="k" data-i18n="acc.eq">Equity</div><div class="v font-bold text-base" id="acc-eq">—</div>
+        <div class="k" data-i18n="acc.ret">Return</div><div class="v" id="acc-ret">—</div>
+        <div class="k" data-i18n="acc.rpnl">Realized PnL</div><div class="v" id="acc-rpnl">—</div>
+        <div class="k" data-i18n="acc.upnl">Unrealized PnL</div><div class="v" id="acc-upnl">—</div>
+        <div class="k" data-i18n="acc.fee">Total fee</div><div class="v" id="acc-fee">—</div>
+        <div class="k" data-i18n="acc.dd">Drawdown</div><div class="v" id="acc-dd">—</div>
+        <div class="k" data-i18n="acc.maxdd">Max drawdown</div><div class="v" id="acc-maxdd">—</div>
+        <div class="k" data-i18n="acc.trades">Trades</div><div class="v" id="acc-trades">—</div>
+      </div>
+      <div class="mt-3">
+        <div class="text-xs font-bold text-gray-400 mb-1" data-i18n="pos.title">Open positions</div>
+        <table class="w-full text-xs">
+          <thead><tr class="text-gray-500 text-left">
+            <th class="font-normal" data-i18n="mkt.symbol">Symbol</th>
+            <th class="font-normal" data-i18n="pos.side">Side</th>
+            <th class="font-normal text-right" data-i18n="pos.qty">Qty</th>
+            <th class="font-normal text-right" data-i18n="pos.entry">Entry</th>
+            <th class="font-normal text-right" data-i18n="pos.upnl">uPnL</th>
+          </tr></thead>
+          <tbody id="positions-body">
+            <tr><td colspan="5" class="text-gray-600 italic" data-i18n="pos.empty">no open positions</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="col-span-12 md:col-span-4 card p-4">
+      <h2 class="text-sm font-bold text-gray-200 mb-2" data-i18n="panel.price">Price (recent bars)</h2>
+      <div style="height:240px"><canvas id="chart"></canvas></div>
+    </section>
+
+    <!-- Strategy Controls -->
+    <section class="col-span-12 card p-4">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-3">
+        <h2 class="text-sm font-bold text-gray-200" data-i18n="panel.strategies">Strategies</h2>
+        <div class="flex items-center gap-3 text-xs">
+          <span class="text-gray-400" data-i18n="strat.mode">Mode:</span>
+          <label class="cursor-pointer">
+            <input type="radio" name="mode" value="auto" id="mode-auto" class="mr-1" checked>
+            <span data-i18n="strat.auto">Auto (regime-based)</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="mode" value="manual" id="mode-manual" class="mr-1">
+            <span data-i18n="strat.manual">Manual</span>
+          </label>
+          <span class="text-gray-500 mx-2">|</span>
+          <span class="text-gray-400" data-i18n="strat.active">Active:</span>
+          <span id="strategies-active-name" class="text-cyan-300 font-bold">—</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="strategy-cards"></div>
+    </section>
+
+    <section class="col-span-12 card p-4">
+      <h2 class="text-sm font-bold text-gray-200 mb-2" data-i18n="panel.log">Trade Log</h2>
+      <div class="scroll-y" style="max-height:340px">
+        <table class="w-full text-xs">
+          <thead class="text-gray-500 text-left sticky top-0 bg-[#161b22]">
+            <tr>
+              <th class="font-normal py-1 w-24" data-i18n="log.time">Time</th>
+              <th class="font-normal py-1 w-20" data-i18n="log.level">Level</th>
+              <th class="font-normal py-1" data-i18n="log.msg">Message</th>
+            </tr>
+          </thead>
+          <tbody id="event-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------------- i18n ---------------- //
+    const I18N = {
+      'zh-TW': {
+        'header.title': '加密貨幣交易機器人',
+        'header.simulated': '模擬',
+        'conn.connecting': '連線中…',
+        'conn.connected': '已連線',
+        'conn.disconnected': '未連線',
+        'panel.market': '市場狀態',
+        'panel.account': '帳戶',
+        'panel.price': '近期價格',
+        'panel.log': '交易日誌',
+        'panel.strategies': '策略管理',
+        'mkt.symbol': '交易對',
+        'mkt.price': '最新價格',
+        'mkt.strategy': '啟用策略',
+        'ind.atrpct': 'ATR 百分位',
+        'acc.init': '初始資金',
+        'acc.bal': '餘額',
+        'acc.eq': '總權益',
+        'acc.ret': '收益率',
+        'acc.rpnl': '已實現損益',
+        'acc.upnl': '未實現損益',
+        'acc.fee': '累計手續費',
+        'acc.dd': '當前回撤',
+        'acc.maxdd': '最大回撤',
+        'acc.trades': '成交筆數',
+        'pos.title': '持倉',
+        'pos.empty': '無持倉',
+        'pos.side': '方向',
+        'pos.qty': '數量',
+        'pos.entry': '開倉均價',
+        'pos.upnl': '浮動盈虧',
+        'log.time': '時間',
+        'log.level': '等級',
+        'log.msg': '訊息',
+        'strat.mode': '模式：',
+        'strat.auto': '自動（依市場狀態）',
+        'strat.manual': '手動',
+        'strat.active': '目前啟用：',
+        'strat.regimes': '適用 regime：',
+        'strat.bars': '已載入 bar：',
+        'strat.params': '參數',
+        'strat.apply': '套用參數',
+        'strat.activate': '設為啟用',
+        'strat.is_active': '啟用中',
+        'strat.applied': '已套用',
+        'strat.failed': '失敗',
+        'strat.confirm_active': '切換到手動模式並啟用',
+      },
+      'en': {
+        'header.title': 'Crypto Trading Bot',
+        'header.simulated': 'simulated',
+        'conn.connecting': 'connecting…',
+        'conn.connected': 'connected',
+        'conn.disconnected': 'disconnected',
+        'panel.market': 'Market State',
+        'panel.account': 'Account',
+        'panel.price': 'Price (recent bars)',
+        'panel.log': 'Trade Log',
+        'panel.strategies': 'Strategies',
+        'mkt.symbol': 'Symbol',
+        'mkt.price': 'Last price',
+        'mkt.strategy': 'Active strategy',
+        'ind.atrpct': 'ATR percentile',
+        'acc.init': 'Initial balance',
+        'acc.bal': 'Balance',
+        'acc.eq': 'Equity',
+        'acc.ret': 'Return',
+        'acc.rpnl': 'Realized PnL',
+        'acc.upnl': 'Unrealized PnL',
+        'acc.fee': 'Total fee',
+        'acc.dd': 'Drawdown',
+        'acc.maxdd': 'Max drawdown',
+        'acc.trades': 'Trades',
+        'pos.title': 'Open positions',
+        'pos.empty': 'no open positions',
+        'pos.side': 'Side',
+        'pos.qty': 'Qty',
+        'pos.entry': 'Entry',
+        'pos.upnl': 'uPnL',
+        'log.time': 'Time',
+        'log.level': 'Level',
+        'log.msg': 'Message',
+        'strat.mode': 'Mode:',
+        'strat.auto': 'Auto (regime-based)',
+        'strat.manual': 'Manual',
+        'strat.active': 'Active:',
+        'strat.regimes': 'Suitable regimes:',
+        'strat.bars': 'Bars loaded:',
+        'strat.params': 'Params',
+        'strat.apply': 'Apply params',
+        'strat.activate': 'Set Active',
+        'strat.is_active': 'ACTIVE',
+        'strat.applied': 'applied',
+        'strat.failed': 'failed',
+        'strat.confirm_active': 'switch to manual and activate',
+      },
+    };
+    let currentLang = localStorage.getItem('lang') || 'zh-TW';
+    function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || I18N['en'][key] || key; }
+    function applyI18n() {
+      document.documentElement.lang = currentLang;
+      document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
+    }
+    function setLang(lang) {
+      currentLang = lang;
+      localStorage.setItem('lang', lang);
+      applyI18n();
+      // 重渲染策略卡片以更新內部文字
+      if (lastStrategiesData) renderStrategyCards(lastStrategiesData, true);
+    }
+    document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
+    // ---------------- chart ---------------- //
+    let chart = null;
+    function initChart() {
+      const ctx = document.getElementById('chart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{
+          label: 'close', data: [],
+          borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)',
+          tension: 0.15, pointRadius: 0, fill: true, borderWidth: 1.5,
+        }]},
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false }},
+          scales: {
+            x: { ticks: { color:'#7d8590', maxTicksLimit:6, font:{size:10} }, grid:{ color:'#21262d' } },
+            y: { ticks: { color:'#7d8590', font:{size:10} }, grid:{ color:'#21262d' } },
+          }
+        }
+      });
+    }
+
+    // ---------------- formatters ---------------- //
+    const fmt = (v, d = 2) => {
+      if (v === null || v === undefined || v === '') return '—';
+      const n = Number(v); if (Number.isNaN(n)) return String(v);
+      return n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+    };
+    const fmtSigned = (v, d = 2) => { if (v === null || v === undefined) return '—'; const n = Number(v); return (n >= 0 ? '+' : '') + fmt(n, d); };
+    const fmtPct = (v, d = 2) => v === null || v === undefined ? '—' : (Number(v) * 100).toFixed(d) + '%';
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const setColor = (id, color) => { const el = document.getElementById(id); if (el) el.style.color = color; };
+    const numColor = v => (Number(v) >= 0 ? '#3fb950' : '#ff7b72');
+    const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    // ---------------- strategy controls ---------------- //
+    let lastStrategiesData = null;        // 來自 WS 的最近一份 strategies 結構
+    let pinnedStrategiesSig = null;       // 上次渲染時的「策略結構簽名」，避免每根 bar 重 render 蓋掉使用者輸入
+
+    function strategiesSignature(s) {
+      // 結構性簽名：策略列表、每個策略的 params keys 與型別、override
+      return JSON.stringify({
+        ov: s.override,
+        names: s.strategies.map(x => x.name),
+        keys: s.strategies.map(x => Object.keys(x.params).sort()),
+      });
+    }
+
+    function renderStrategyCards(data, force = false) {
+      lastStrategiesData = data;
+      const container = document.getElementById('strategy-cards');
+      const sig = strategiesSignature(data);
+
+      // 動態狀態（active / bars_loaded）只更新文字，不重建 input
+      if (!force && sig === pinnedStrategiesSig && container.children.length === data.strategies.length) {
+        data.strategies.forEach(s => {
+          const card = container.querySelector(`[data-card-name="${s.name}"]`);
+          if (!card) return;
+          card.classList.toggle('card-active', !!s.is_active);
+          const activeBadge = card.querySelector('[data-active-badge]');
+          if (activeBadge) activeBadge.style.display = s.is_active ? 'inline-block' : 'none';
+          const barsEl = card.querySelector('[data-bars-loaded]');
+          if (barsEl) barsEl.textContent = s.bars_loaded;
+        });
+        // 更新「目前啟用」的顯示文字
+        const overrideTag = data.override ? ' (manual)' : ' (auto)';
+        document.getElementById('strategies-active-name').textContent = data.active_strategy + overrideTag;
+        // 同步 mode radio
+        document.getElementById('mode-manual').checked = !!data.override;
+        document.getElementById('mode-auto').checked = !data.override;
+        document.querySelectorAll('[data-strategy-activate]').forEach(b => {
+          const cardName = b.closest('[data-card-name]').dataset.cardName;
+          b.disabled = (data.override === cardName);
+        });
+        return;
+      }
+
+      pinnedStrategiesSig = sig;
+      container.innerHTML = '';
+
+      const overrideTag = data.override ? ' (manual)' : ' (auto)';
+      document.getElementById('strategies-active-name').textContent = data.active_strategy + overrideTag;
+      document.getElementById('mode-manual').checked = !!data.override;
+      document.getElementById('mode-auto').checked = !data.override;
+
+      data.strategies.forEach(s => {
+        const card = document.createElement('div');
+        card.dataset.cardName = s.name;
+        card.className = 'card p-3 ' + (s.is_active ? 'card-active' : '');
+
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between mb-2';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'flex items-center gap-2';
+        nameEl.innerHTML = `<span class="font-bold text-cyan-300">${escapeHtml(s.name)}</span>`;
+        const activeBadge = document.createElement('span');
+        activeBadge.dataset.activeBadge = '';
+        activeBadge.className = 'badge';
+        activeBadge.style.background = '#3fb950';
+        activeBadge.style.color = '#0d1117';
+        activeBadge.textContent = t('strat.is_active');
+        activeBadge.style.display = s.is_active ? 'inline-block' : 'none';
+        nameEl.appendChild(activeBadge);
+        header.appendChild(nameEl);
+        card.appendChild(header);
+
+        const meta = document.createElement('div');
+        meta.className = 'text-[10px] text-gray-500 mb-2 leading-relaxed';
+        meta.innerHTML =
+          `<div>${t('strat.regimes')} ${s.regimes && s.regimes.length ? s.regimes.join(', ') : '—'}</div>` +
+          `<div>${t('strat.bars')} <span data-bars-loaded>${s.bars_loaded}</span></div>`;
+        card.appendChild(meta);
+
+        // params
+        const paramsBox = document.createElement('div');
+        paramsBox.className = 'space-y-1';
+        const params = s.params || {};
+        Object.keys(params).forEach(key => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between text-xs gap-2';
+          const label = document.createElement('span');
+          label.className = 'text-gray-400 truncate';
+          label.title = key;
+          label.textContent = key;
+          const input = document.createElement('input');
+          input.className = 'input';
+          input.type = (typeof params[key] === 'number') ? 'number' : 'text';
+          input.step = (typeof params[key] === 'number' && Number.isFinite(params[key]) && !Number.isInteger(params[key])) ? 'any' : '1';
+          input.value = params[key] === null ? '' : params[key];
+          input.dataset.paramKey = key;
+          row.appendChild(label);
+          row.appendChild(input);
+          paramsBox.appendChild(row);
+        });
+        card.appendChild(paramsBox);
+
+        // buttons
+        const btnRow = document.createElement('div');
+        btnRow.className = 'flex gap-2 mt-3';
+        const applyBtn = document.createElement('button');
+        applyBtn.className = 'btn btn-primary';
+        applyBtn.textContent = t('strat.apply');
+        applyBtn.addEventListener('click', () => onApplyParams(s.name, card));
+        btnRow.appendChild(applyBtn);
+        const activateBtn = document.createElement('button');
+        activateBtn.className = 'btn btn-secondary';
+        activateBtn.dataset.strategyActivate = '';
+        activateBtn.textContent = t('strat.activate');
+        activateBtn.disabled = (data.override === s.name);
+        activateBtn.addEventListener('click', () => onSetActive(s.name));
+        btnRow.appendChild(activateBtn);
+        card.appendChild(btnRow);
+
+        // status line
+        const status = document.createElement('div');
+        status.className = 'text-[10px] mt-2 text-gray-500';
+        status.dataset.statusLine = '';
+        card.appendChild(status);
+
+        container.appendChild(card);
+      });
+    }
+
+    async function onApplyParams(name, card) {
+      const inputs = card.querySelectorAll('input[data-param-key]');
+      const params = {};
+      inputs.forEach(i => {
+        let v = i.value;
+        if (i.type === 'number' && v !== '') v = Number(v);
+        params[i.dataset.paramKey] = v;
+      });
+      const status = card.querySelector('[data-status-line]');
+      try {
+        const resp = await fetch(`/api/strategies/${encodeURIComponent(name)}/params`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ params }),
+        });
+        const body = await resp.json();
+        if (!resp.ok) throw new Error(body.detail || resp.statusText);
+        status.style.color = '#3fb950';
+        status.textContent = `✓ ${t('strat.applied')} (${new Date().toLocaleTimeString()})`;
+      } catch (err) {
+        status.style.color = '#ff7b72';
+        status.textContent = `✗ ${t('strat.failed')}: ${err.message || err}`;
+      }
+    }
+
+    async function onSetActive(name) {
+      const isManualNow = document.getElementById('mode-manual').checked;
+      if (!isManualNow) {
+        if (!confirm(t('strat.confirm_active') + ` ${name} ?`)) return;
+        document.getElementById('mode-manual').checked = true;
+      }
+      try {
+        const resp = await fetch('/api/strategy/active', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        if (!resp.ok) throw new Error((await resp.json()).detail);
+        // 強制下次 WS message 觸發完整 re-render
+        pinnedStrategiesSig = null;
+      } catch (err) {
+        alert('Set active failed: ' + (err.message || err));
+      }
+    }
+
+    // mode radio: 切到 auto 時釋放 override
+    document.getElementById('mode-auto').addEventListener('change', async (ev) => {
+      if (!ev.target.checked) return;
+      try {
+        await fetch('/api/strategy/active', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: null }),
+        });
+        pinnedStrategiesSig = null;
+      } catch (err) {
+        alert('Release override failed: ' + err);
+      }
+    });
+    document.getElementById('mode-manual').addEventListener('change', (ev) => {
+      // 純 UI 狀態：要實際變更得按某張卡片的 Set Active
+      if (!ev.target.checked) return;
+      const status = document.querySelectorAll('[data-status-line]');
+      status.forEach(s => { s.textContent = ''; });
+    });
+
+    // ---------------- main render from WS ---------------- //
+    function render(data) {
+      const s = data.state || {};
+      setText('header-meta', `bars=${data.bar_count}  ·  ${new Date().toLocaleTimeString()}`);
+
+      setText('mkt-symbol', s.symbol || '—');
+      setText('mkt-price', fmt(s.last_price, 2));
+      const regimeEl = document.getElementById('mkt-regime');
+      const regime = (s.regime || 'UNKNOWN');
+      regimeEl.textContent = regime;
+      regimeEl.className = 'badge badge-' + regime.toLowerCase();
+      setText('mkt-strategy', s.active_strategy || '—');
+      setText('mkt-note', s.regime_note || '');
+
+      const ind = s.indicators || {};
+      setText('ind-adx', ind.adx != null ? Number(ind.adx).toFixed(2) : '—');
+      setText('ind-atr', ind.atr != null ? Number(ind.atr).toFixed(4) : '—');
+      setText('ind-atrpct', ind.atr_pct != null ? fmtPct(ind.atr_pct, 1) : '—');
+      setText('ind-rsi', ind.rsi != null ? Number(ind.rsi).toFixed(1) : '—');
+
+      const a = s.account || {};
+      setText('acc-init', fmt(a.initial_balance) + ' USDT');
+      setText('acc-bal', fmt(a.balance) + ' USDT');
+      setText('acc-eq', fmt(a.equity) + ' USDT');
+      setColor('acc-eq', a.equity != null && a.initial_balance != null && Number(a.equity) >= Number(a.initial_balance) ? '#3fb950' : '#ff7b72');
+      setText('acc-ret', fmtPct(a.return_pct));
+      setColor('acc-ret', numColor(a.return_pct || 0));
+      setText('acc-rpnl', fmtSigned(a.realized_pnl));
+      setColor('acc-rpnl', numColor(a.realized_pnl || 0));
+      setText('acc-upnl', fmtSigned(a.total_unrealized_pnl));
+      setColor('acc-upnl', numColor(a.total_unrealized_pnl || 0));
+      setText('acc-fee', fmt(a.total_fee_paid));
+      setText('acc-dd', fmtPct(s.current_drawdown));
+      setText('acc-maxdd', fmtPct(s.max_drawdown));
+      setText('acc-trades', a.trades_count != null ? a.trades_count : '—');
+
+      const pBody = document.getElementById('positions-body');
+      const positions = (a.open_positions) || {};
+      const upMap = (a.unrealized_pnl_by_symbol) || {};
+      const keys = Object.keys(positions);
+      if (keys.length === 0) {
+        pBody.innerHTML = `<tr><td colspan="5" class="text-gray-600 italic py-1">${t('pos.empty')}</td></tr>`;
+      } else {
+        pBody.innerHTML = keys.map(sym => {
+          const p = positions[sym];
+          const upnl = Number(upMap[sym] || 0);
+          const sideColor = p.side === 'LONG' ? '#3fb950' : '#ff7b72';
+          const upnlColor = upnl >= 0 ? '#3fb950' : '#ff7b72';
+          return `<tr>
+            <td class="py-0.5">${sym}</td>
+            <td class="py-0.5" style="color:${sideColor}">${p.side}</td>
+            <td class="py-0.5 text-right">${fmt(p.quantity, 6)}</td>
+            <td class="py-0.5 text-right">${fmt(p.avg_entry_price, 2)}</td>
+            <td class="py-0.5 text-right" style="color:${upnlColor}">${fmtSigned(upnl, 2)}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // strategies (新)
+      if (s.strategies) renderStrategyCards(s.strategies);
+
+      const prices = data.price_history || [];
+      if (chart && prices.length > 0) {
+        chart.data.labels = prices.map(b => new Date(b.t).toLocaleTimeString());
+        chart.data.datasets[0].data = prices.map(b => b.c);
+        chart.update('none');
+      }
+
+      const evtBody = document.getElementById('event-body');
+      const events = (data.events || []).slice(-100).reverse();
+      evtBody.innerHTML = events.map(e => {
+        const t2 = new Date(e.t).toLocaleTimeString();
+        return `<tr>
+          <td class="py-0.5 text-gray-500">${t2}</td>
+          <td class="py-0.5 lvl-${e.level}">${e.level}</td>
+          <td class="py-0.5">${escapeHtml(e.msg)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function setConn(connected) {
+      const dot = document.getElementById('conn-dot');
+      const text = document.getElementById('conn-text');
+      dot.style.backgroundColor = connected ? '#3fb950' : '#ff7b72';
+      text.textContent = connected ? t('conn.connected') : t('conn.disconnected');
+    }
+
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}/ws`);
+      ws.onopen = () => setConn(true);
+      ws.onclose = () => { setConn(false); setTimeout(connect, 1500); };
+      ws.onerror = () => { try { ws.close(); } catch (e) {} };
+      ws.onmessage = ev => {
+        try { render(JSON.parse(ev.data)); }
+        catch (e) { console.error('render error', e); }
+      };
+    }
+
+    initChart();
+    applyI18n();
+    connect();
+  </script>
+</body>
+</html>

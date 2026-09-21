@@ -1,0 +1,23 @@
+name: Quant Pilot checks
+on:
+  push:
+    paths: ['bot/**', '.github/workflows/quant-pilot-checks.yml']
+  pull_request:
+    paths: ['bot/**', '.github/workflows/quant-pilot-checks.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bot
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: bot/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -B -m unittest discover -v
