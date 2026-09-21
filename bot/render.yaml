@@ -11,7 +11,7 @@ services:
     dockerContext: .
     numInstances: 1
     healthCheckPath: /healthz
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
     disk:
       name: quant-pilot-data
       mountPath: /var/data
